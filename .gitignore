@@ -1,0 +1,23 @@
+# 가상 환경
+venv/
+.env/
+
+# 파이썬 컴파일 파일
+*.pyc
+__pycache__/
+
+# 데이터베이스
+db.sqlite3
+
+# 미디어 파일
+media/
+
+# 환경 변수 파일
+.env
+
+# IDE 설정 파일
+.idea/
+.vscode/
+
+.ipynb_checkpoints/*
+esg_data_test.json
