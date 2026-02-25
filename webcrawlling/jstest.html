@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>이름 입력 예제</title>
+</head>
+<body>
+    <label for="nameInput">이름 </label>
+    <input type="text" id="nameInput" placeholder="여기에 이름 입력하고">
+
+    <button id="submitBtn">입력</button>
+
+    <br><br>
+
+    <p>당신의 이름은 <span id="resultName">____</span> 입니다.</p>
+
+    <script>
+        // HTML 요소들을 자바스크립트 변수로 가져오기
+        const nameInput = document.getElementById('nameInput');
+        const submitBtn = document.getElementById('submitBtn');
+        const resultName = document.getElementById('resultName');
+
+        // 2번 동작: 버튼을 클릭했을 때 실행할 이벤트 설정
+        submitBtn.addEventListener('click', function() {
+            
+            // 1번 동작: 입력창(input)에 작성된 값(value)을 가져오기
+            const currentName = nameInput.value;
+            
+            // 3번 동작: 화면의 텍스트 영역(span)에 가져온 값을 채워 넣기
+            if (currentName.trim() !== "") {
+                resultName.innerText = currentName;
+            } else {
+                alert("이름을 입력해 주세요!");
+            }
+        });
+    </script>
+</body>
+</html>
