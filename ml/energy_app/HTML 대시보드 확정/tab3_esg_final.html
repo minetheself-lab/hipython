@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>탭3 — ESG 리포트 (다연도) | 올라운더</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+:root {
+  --bg:#F4F6F9;--bg2:#FFFFFF;--bg3:#F8FAFC;
+  --border:rgba(0,0,0,0.08);--border2:rgba(0,0,0,0.15);
+  --text:#1E293B;--text2:#475569;--text3:#94A3B8;
+  --blue:#2563EB;--blue-dark:#1D4ED8;--blue-bg:rgba(37,99,235,0.08);
+  --green:#059669;--green-bg:rgba(5,150,105,0.08);
+  --yellow:#D97706;--yellow-bg:rgba(217,119,6,0.10);
+  --orange:#EA580C;--orange-bg:rgba(234,88,12,0.10);
+  --red:#DC2626;--red-bg:rgba(220,38,38,0.08);
+  --teal:#0D9488;--teal-bg:rgba(13,148,136,0.08);
+  --purple:#7C3AED;--purple-bg:rgba(124,58,237,0.08);
+  --sidebar-w:240px;--header-h:52px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.6;overflow-x:hidden;}
+.header{position:fixed;top:0;left:0;right:0;z-index:100;height:var(--header-h);background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:12px;}
+.logo{background:var(--blue-dark);color:#fff;font-weight:700;font-size:13px;padding:4px 9px;border-radius:6px;}
+.header-title{font-size:14px;font-weight:500;}
+.header-right{margin-left:auto;font-size:11px;color:var(--text3);}
+.sidebar{position:fixed;top:var(--header-h);left:0;bottom:0;width:var(--sidebar-w);background:var(--bg2);border-right:1px solid var(--border);overflow-y:auto;z-index:90;display:flex;flex-direction:column;}
+.nav-section{padding:14px 10px 4px;}
+.nav-label{font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;padding:6px 8px 4px;}
+.nav-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:6px;cursor:pointer;color:var(--text2);font-size:13px;transition:all .15s;}
+.nav-item:hover{background:var(--bg3);}
+.nav-item.active{background:var(--green-bg);color:var(--green);font-weight:500;}
+.nav-icon{font-size:15px;width:18px;text-align:center;}
+.sidebar-divider{border:none;border-top:1px solid var(--border);margin:8px 10px;}
+.form-section{padding:12px 12px 0;}
+.form-section-title{font-size:11px;font-weight:500;color:var(--text2);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:5px;}
+.form-group{margin-bottom:10px;}
+.form-label{font-size:11px;color:var(--text3);margin-bottom:3px;display:flex;align-items:center;gap:4px;}
+.form-select,.form-input{width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:6px 8px;font-size:12px;font-family:'Noto Sans KR',sans-serif;outline:none;transition:border .15s;}
+.form-select:focus,.form-input:focus{border-color:var(--green);}
+.month-range-row{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.mode-tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:10px;}
+.mode-tab{text-align:center;padding:6px 4px;border-radius:6px;border:1px solid var(--border2);cursor:pointer;font-size:11px;color:var(--text3);transition:all .15s;}
+.mode-tab.active{background:var(--green-bg);border-color:var(--green);color:var(--green);font-weight:500;}
+
+/* ★ CSV 첨부 영역 */
+.csv-upload-area{margin:0 12px 10px;border:1.5px dashed var(--border2);border-radius:8px;padding:12px 10px;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg3);position:relative;}
+.csv-upload-area:hover{border-color:var(--green);background:var(--green-bg);}
+.csv-upload-area.drag-over{border-color:var(--green);background:var(--green-bg);transform:scale(1.01);}
+.csv-upload-area input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.csv-upload-icon{font-size:22px;margin-bottom:4px;}
+.csv-upload-text{font-size:11px;color:var(--text3);line-height:1.6;}
+.csv-upload-text b{color:var(--green);}
+.csv-file-info{margin:0 12px 6px;padding:8px 10px;background:var(--green-bg);border:1px solid rgba(5,150,105,.25);border-radius:6px;font-size:11px;color:var(--green);display:none;}
+.csv-file-info.show{display:flex;align-items:center;gap:6px;}
+.csv-remove-btn{margin-left:auto;background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;}
+.csv-remove-btn:hover{color:var(--red);}
+.csv-col-check{margin:0 12px 10px;font-size:10px;color:var(--text3);display:none;line-height:1.8;}
+.csv-col-check.show{display:block;}
+.col-ok{color:var(--green);}
+.col-miss{color:var(--red);}
+
+.gen-btn{width:calc(100% - 24px);margin:10px 12px 4px;padding:11px;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:background .15s;}
+.gen-btn:hover{background:#047857;}
+.gen-btn:active{transform:scale(.98);}
+.dl-btn{width:calc(100% - 24px);margin:6px 12px 0;padding:9px;background:var(--bg3);color:var(--green);border:1px solid var(--green);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:all .15s;}
+.dl-btn:hover{background:var(--green-bg);}
+.dl-btn:disabled{opacity:.4;cursor:not-allowed;}
+.data-status{margin:8px 12px 0;padding:8px 10px;border-radius:6px;font-size:10px;line-height:1.7;}
+.ds-partial{background:var(--yellow-bg);border:1px solid rgba(217,119,6,.25);color:var(--yellow);}
+.ds-full{background:var(--green-bg);border:1px solid rgba(5,150,105,.25);color:var(--green);}
+.ds-csv{background:var(--blue-bg);border:1px solid rgba(37,99,235,.25);color:var(--blue);}
+
+/* 툴팁 */
+.tip-btn{width:15px;height:15px;border-radius:50%;background:var(--text3);color:#fff;font-size:9px;font-weight:700;border:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s;}
+.tip-btn:hover{background:var(--green);}
+.tip-box{display:none !important;}
+#g-tip{display:none;position:fixed;z-index:99999;width:250px;background:#1E293B;color:#F1F5F9;font-size:11px;line-height:1.6;padding:10px 12px;border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,.35);pointer-events:none;}
+#g-tip::before{content:'';position:absolute;left:-5px;top:10px;border:5px solid transparent;border-right-color:#1E293B;border-left:none;}
+.tip-title{font-weight:700;color:#fff;margin-bottom:4px;font-size:11px;}
+.tip-src{color:#94A3B8;font-size:10px;margin-top:5px;border-top:1px solid rgba(255,255,255,.1);padding-top:4px;}
+
+/* 메인 */
+.main{margin-left:var(--sidebar-w);margin-top:var(--header-h);padding:22px;min-height:calc(100vh - var(--header-h));}
+.page-title{font-size:20px;font-weight:700;margin-bottom:3px;}
+.page-caption{font-size:12px;color:var(--text3);margin-bottom:18px;}
+.status-banner{padding:11px 16px;border-radius:8px;margin-bottom:16px;font-size:13px;display:flex;align-items:center;gap:10px;border:1px solid;}
+.banner-ready{background:var(--green-bg);border-color:rgba(5,150,105,.3);color:var(--green);}
+.banner-idle{background:var(--bg3);border-color:var(--border2);color:var(--text3);}
+.partial-banner{background:var(--yellow-bg);border:1px solid rgba(217,119,6,.3);border-left:4px solid var(--yellow);border-radius:8px;padding:11px 16px;margin-bottom:14px;font-size:12px;color:var(--yellow);display:flex;align-items:flex-start;gap:10px;line-height:1.7;}
+.csv-banner{background:var(--blue-bg);border:1px solid rgba(37,99,235,.3);border-left:4px solid var(--blue);border-radius:8px;padding:11px 16px;margin-bottom:14px;font-size:12px;color:var(--blue);display:flex;align-items:center;gap:10px;}
+.annualize-banner{background:var(--purple-bg);border:1px solid rgba(124,58,237,.25);border-left:4px solid var(--purple);border-radius:8px;padding:10px 16px;margin-bottom:14px;font-size:12px;color:var(--purple);display:none;align-items:center;gap:10px;}
+.annualize-banner.show{display:flex;}
+.progress-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:16px;}
+.progress-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:12px;}
+.progress-months{display:grid;grid-template-columns:repeat(12,1fr);gap:4px;}
+.pm-item{text-align:center;font-size:9px;}
+.pm-bar{height:28px;border-radius:4px;margin-bottom:3px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;}
+.pm-has{background:var(--green);color:#fff;}
+.pm-none{background:var(--bg3);border:1px dashed var(--border2);color:var(--text3);}
+.pm-label{color:var(--text3);}
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px;}
+.kpi-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;}
+.kpi-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px;}
+.kpi-label{font-size:11px;color:var(--text3);line-height:1.4;}
+.kpi-val{font-size:20px;font-weight:700;font-family:'JetBrains Mono',monospace;line-height:1.2;}
+.kpi-unit{font-size:11px;color:var(--text3);margin-top:3px;}
+.kpi-badge{display:inline-block;font-size:10px;padding:2px 7px;border-radius:4px;font-weight:500;margin-top:4px;}
+.kpi-annualized{border:1.5px dashed var(--purple)!important;}
+.annualized-tag{display:inline-block;font-size:9px;padding:1px 5px;border-radius:3px;background:var(--purple-bg);color:var(--purple);margin-left:4px;font-weight:600;}
+.green{color:var(--green)}.blue{color:var(--blue)}.teal{color:var(--teal)}.yellow{color:var(--yellow)}.orange{color:var(--orange)}.purple{color:var(--purple)}
+.badge-green{background:var(--green-bg);color:var(--green);}
+.badge-blue{background:var(--blue-bg);color:var(--blue);}
+.badge-teal{background:var(--teal-bg);color:var(--teal);}
+.badge-yellow{background:var(--yellow-bg);color:var(--yellow);}
+.badge-orange{background:var(--orange-bg);color:var(--orange);}
+.two-col{display:grid;grid-template-columns:3fr 2fr;gap:16px;margin-bottom:16px;}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:18px 20px;}
+.card-title{font-size:13px;font-weight:500;margin-bottom:14px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.scenario-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;}
+.scenario-card{border-radius:10px;padding:16px 18px;border:1px solid;}
+.sc-10{background:var(--green-bg);border-color:rgba(5,150,105,.25);}
+.sc-20{background:var(--teal-bg);border-color:rgba(13,148,136,.25);}
+.sc-label{font-size:11px;font-weight:500;margin-bottom:4px;display:flex;align-items:center;gap:5px;}
+.sc-10 .sc-label{color:var(--green);}
+.sc-20 .sc-label{color:var(--teal);}
+.sc-val{font-size:26px;font-weight:700;font-family:'JetBrains Mono',monospace;}
+.sc-10 .sc-val{color:var(--green);}
+.sc-20 .sc-val{color:var(--teal);}
+.sc-desc{font-size:11px;color:var(--text3);margin-top:5px;}
+.sc-formula{font-size:10px;color:var(--text3);margin-top:6px;padding-top:6px;border-top:1px dashed rgba(0,0,0,.1);font-family:'JetBrains Mono',monospace;}
+.table-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:18px 20px;margin-bottom:16px;}
+.tbl-wrap{overflow-x:auto;}
+table.monthly{width:100%;border-collapse:collapse;font-size:12px;}
+table.monthly th{background:var(--bg3);color:var(--text2);font-weight:500;padding:8px 10px;text-align:right;border-bottom:2px solid var(--border2);white-space:nowrap;}
+table.monthly th:first-child{text-align:center;}
+table.monthly td{padding:7px 10px;text-align:right;border-bottom:1px solid var(--border);color:var(--text2);font-family:'JetBrains Mono',monospace;font-size:11px;}
+table.monthly td:first-child{text-align:center;font-family:'Noto Sans KR',sans-serif;color:var(--text);font-weight:500;font-size:12px;}
+table.monthly td:nth-child(2){text-align:center;font-family:'Noto Sans KR',sans-serif;font-size:11px;}
+table.monthly tr:hover td{background:var(--bg3);}
+table.monthly tr.total-row td{background:var(--green-bg);font-weight:700;color:var(--green);border-top:2px solid rgba(5,150,105,.3);}
+table.monthly tr.missing-row td{background:var(--bg3);color:var(--text3);font-style:italic;}
+.peak-bar{display:inline-block;height:6px;border-radius:3px;background:var(--green);vertical-align:middle;margin-left:6px;opacity:.6;}
+.basic-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+.basic-item{text-align:center;padding:14px 10px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);}
+.basic-item.red-bg{background:var(--red-bg);border-color:rgba(220,38,38,.2);}
+.bi-label{font-size:10px;color:var(--text3);margin-bottom:4px;}
+.bi-val{font-size:20px;font-weight:700;font-family:'JetBrains Mono',monospace;}
+.bi-unit{font-size:10px;color:var(--text3);margin-top:2px;}
+.loading-overlay{display:none;position:fixed;inset:0;background:rgba(248,250,252,.85);z-index:9000;align-items:center;justify-content:center;flex-direction:column;gap:12px;}
+.loading-overlay.show{display:flex;}
+.spinner{width:36px;height:36px;border:3px solid var(--border2);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading-text{font-size:13px;color:var(--text2);}
+.empty-state{text-align:center;padding:60px 20px;color:var(--text3);}
+.empty-icon{font-size:48px;margin-bottom:14px;}
+.empty-title{font-size:16px;font-weight:500;color:var(--text2);margin-bottom:8px;}
+.empty-desc{font-size:12px;line-height:1.9;}
+.note-bar{font-size:10px;color:var(--text3);padding:10px 0 4px;border-top:1px solid var(--border);margin-top:8px;}
+</style>
+</head>
+<body>
+<div id="g-tip"></div>
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loadingText">GRI 302 데이터 집계 중…</div>
+</div>
+
+<div class="header">
+  <div class="logo">EP</div>
+  <span class="header-title">공장 전력 피크 예측 · 자원 최적화</span>
+  <div class="header-right">올라운더팀 2026</div>
+</div>
+
+<div class="sidebar">
+  <div class="nav-section">
+    <div class="nav-label">메뉴</div>
+    <div class="nav-item"><span class="nav-icon">📊</span>피크 예측</div>
+    <div class="nav-item"><span class="nav-icon">💰</span>DR 시뮬레이션</div>
+    <div class="nav-item active"><span class="nav-icon">🌿</span>ESG 리포트</div>
+  </div>
+  <div class="sidebar-divider"></div>
+
+  <div class="form-section">
+    <div class="form-section-title">📋 리포트 설정</div>
+
+    <!-- 분석 연도 -->
+    <div class="form-group">
+      <div class="form-label">
+        분석 연도
+        <button class="tip-btn">?</button>
+        <div class="tip-box">
+          <div class="tip-title">분석 연도</div>
+          <b>2021년</b>: 실제 KAMP 데이터 12개월 전체<br>
+          <b>2022~2025년</b>: 시연용 임의 데이터 (12개월 전체)<br>
+          <b>2026년</b>: 1~2월 수집 중 (실제 부분 데이터)<br>
+          CSV 업로드 시 해당 연도로 자동 전환됩니다.
+          <div class="tip-src">출처: power_estimate_full_YYYY.csv</div>
+        </div>
+      </div>
+      <select class="form-select" id="selYear" onchange="onYearChange()">
+        <option value="2021">2021년 (12개월 전체)</option>
+        <option value="2022">2022년 (12개월 전체)</option>
+        <option value="2023">2023년 (12개월 전체)</option>
+        <option value="2024">2024년 (12개월 전체)</option>
+        <option value="2025">2025년 (12개월 전체)</option>
+        <option value="2026" selected>2026년 (1~2월 수집 중)</option>
+      </select>
+    </div>
+
+    <!-- 월 범위 (부분 연도일 때만 표시) -->
+    <div class="form-group" id="monthRangeGroup">
+      <div class="form-label">
+        데이터 보유 월 범위
+        <button class="tip-btn">?</button>
+        <div class="tip-box">
+          <div class="tip-title">데이터 보유 월 범위</div>
+          실제 수집 완료된 월의 범위입니다.<br>
+          미수집 월은 집계에서 제외되며,<br>
+          연간 환산 모드에서는 이 범위로 추정합니다.
+          <div class="tip-src">부분 연도 리포트 지원 기능</div>
+        </div>
+      </div>
+      <div class="month-range-row">
+        <select class="form-select" id="selMonthFrom"><option value="1">1월 부터</option></select>
+        <select class="form-select" id="selMonthTo" onchange="updateDataStatus()">
+          <option value="1">1월 까지</option>
+          <option value="2" selected>2월 까지</option>
+          <option value="3">3월 까지</option>
+          <option value="4">4월 까지</option>
+          <option value="5">5월 까지</option>
+          <option value="6">6월 까지</option>
+          <option value="7">7월 까지</option>
+          <option value="8">8월 까지</option>
+          <option value="9">9월 까지</option>
+          <option value="10">10월 까지</option>
+          <option value="11">11월 까지</option>
+          <option value="12">12월 까지</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- 집계 모드 -->
+    <div class="form-group" id="modeGroup">
+      <div class="form-label">
+        집계 모드
+        <button class="tip-btn">?</button>
+        <div class="tip-box">
+          <div class="tip-title">집계 모드</div>
+          <b>실측치만</b>: 수집된 월만 합산 (GRI 공식 제출 권장)<br>
+          <b>연간 환산</b>: 월평균 × 12개월로 연간 추정<br>
+          연간 환산값은 점선 테두리로 표시됩니다.
+          <div class="tip-src">부분 연도 리포트 지원 기능</div>
+        </div>
+      </div>
+      <div class="mode-tabs">
+        <div class="mode-tab active" id="modeActual" onclick="setMode('actual')">실측치만</div>
+        <div class="mode-tab" id="modeAnnual" onclick="setMode('annual')">연간 환산</div>
+      </div>
+    </div>
+
+    <!-- 탄소배출계수 -->
+    <div class="form-group">
+      <div class="form-label">
+        탄소배출계수 (kgCO₂/kWh)
+        <button class="tip-btn">?</button>
+        <div class="tip-box">
+          <div class="tip-title">Scope 2 탄소배출계수</div>
+          전력 1kWh → CO₂ 환산 계수입니다.<br>
+          <b>0.4781</b> kgCO₂/kWh (환경부 고시 2022년)
+          <div class="tip-src">출처: 환경부 국가 온실가스 인벤토리</div>
+        </div>
+      </div>
+      <input type="number" class="form-input" id="inpEmission" value="0.4781" step="0.0001" min="0">
+    </div>
+
+    <!-- 기본요금 단가 -->
+    <div class="form-group">
+      <div class="form-label">
+        기본요금 단가 (원/kW/월)
+        <button class="tip-btn">?</button>
+        <div class="tip-box">
+          <div class="tip-title">기본요금 단가</div>
+          <b>8,320원/kW/월</b> (한전 산업용(을) 고압A 선택I)<br>
+          요금 개정 시 최신값 입력 필요.
+          <div class="tip-src">출처: 한전 전기요금표</div>
+        </div>
+      </div>
+      <input type="number" class="form-input" id="inpBasicRate" value="8320" step="10" min="0">
+    </div>
+  </div>
+
+  <div class="sidebar-divider"></div>
+
+  <!-- ★ CSV 업로드 섹션 -->
+  <div class="form-section">
+    <div class="form-section-title">
+      📂 CSV 데이터 첨부
+      <button class="tip-btn">?</button>
+      <div class="tip-box">
+        <div class="tip-title">CSV 파일 첨부</div>
+        공장에서 직접 추출한 CSV 파일을 첨부하면<br>
+        내장 데이터 대신 첨부 파일로 리포트를 생성합니다.<br><br>
+        <b>필수 컬럼:</b><br>
+        · 추정사용전력량 (kWh)<br>
+        · 15분 (kW, 피크)<br>
+        · 생산량 (개)<br>
+        · 월 (1~12)<br><br>
+        <b>선택 컬럼:</b> 날짜, 시간, 생산구분 등<br><br>
+        파일명 예: power_estimate_full_2027.csv
+        <div class="tip-src">출처: KAMP 기반 공장 운영 데이터</div>
+      </div>
+    </div>
+
+    <div class="csv-upload-area" id="csvUploadArea"
+         ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+      <input type="file" id="csvFileInput" accept=".csv" onchange="onFileSelect(event)">
+      <div class="csv-upload-icon">📄</div>
+      <div class="csv-upload-text">
+        <b>CSV 파일을 드래그</b>하거나<br>클릭하여 선택하세요
+      </div>
+    </div>
+
+    <div class="csv-file-info" id="csvFileInfo">
+      <span id="csvFileName">파일명</span>
+      <button class="csv-remove-btn" onclick="removeCSV()">✕</button>
+    </div>
+
+    <div class="csv-col-check" id="csvColCheck"></div>
+  </div>
+
+  <div class="data-status ds-partial" id="dataStatus">
+    ⚠ <b>부분 데이터</b><br>2026년 1~2월 (2개월)<br>나머지 10개월 미수집
+  </div>
+
+  <button class="gen-btn" onclick="generateReport()">🌿 GRI 302 리포트 생성</button>
+  <button class="dl-btn" id="btnDownload" onclick="downloadCSV()" disabled>⬇ CSV 다운로드</button>
+
+  <div class="sidebar-divider"></div>
+  <div class="form-section">
+    <div class="form-section-title">ℹ GRI 302 항목</div>
+    <div style="font-size:10px;color:var(--text3);line-height:1.9;padding-bottom:12px;">
+      <b style="color:var(--text2);">302-1</b> 연간 에너지 소비량<br>
+      <b style="color:var(--text2);">302-3</b> 에너지 집약도<br>
+      <b style="color:var(--text2);">302-4</b> 에너지 절감량<br>
+      <b style="color:var(--text2);">Scope 2</b> 간접 탄소 배출
+    </div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="page-title">🌿 ESG 탄소 배출 분석 · GRI 302 리포트</div>
+  <div class="page-caption">전력 사용 데이터 기반 자동 집계 | 연간 에너지 소비량 · Scope 2 · 에너지 집약도 · 절감 시나리오</div>
+  <div class="status-banner banner-idle" id="statusBanner">
+    <span>📋</span>
+    <span>왼쪽에서 분석 연도를 선택하거나 CSV를 첨부한 뒤 <b>GRI 302 리포트 생성</b> 버튼을 눌러주세요.</span>
+  </div>
+  <div id="resultArea">
+    <div class="empty-state">
+      <div class="empty-icon">🌱</div>
+      <div class="empty-title">GRI 302 리포트를 생성해주세요</div>
+      <div class="empty-desc">
+        2021~2025년: 내장 데이터로 즉시 생성 가능<br>
+        2026년: 1~2월 부분 데이터 (실측치 / 연간 환산 선택)<br>
+        다른 연도 데이터: CSV 파일 첨부 후 생성
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── 전역 툴팁 ─────────────────────────────────────────────────
+const gTip = document.getElementById('g-tip');
+let tipTimer = null;
+function bindTooltips(root) {
+  (root||document).querySelectorAll('.tip-btn').forEach(btn => {
+    if (btn._bound) return; btn._bound = true;
+    const box = btn.nextElementSibling; if (!box) return;
+    btn.addEventListener('mouseenter', e => { clearTimeout(tipTimer); gTip.innerHTML = box.innerHTML; gTip.style.display='block'; positionTip(e); });
+    btn.addEventListener('mousemove', positionTip);
+    btn.addEventListener('mouseleave', () => { tipTimer = setTimeout(()=>{ gTip.style.display='none'; }, 100); });
+  });
+}
+function positionTip(e) {
+  const pad=12,tw=250,th=gTip.offsetHeight||120;
+  let x=e.clientX+pad+6, y=e.clientY-10;
+  if(x+tw>window.innerWidth-pad) x=e.clientX-tw-pad;
+  if(y+th>window.innerHeight-pad) y=window.innerHeight-th-pad;
+  if(y<pad) y=pad;
+  gTip.style.left=x+'px'; gTip.style.top=y+'px';
+}
+bindTooltips();
+
+// ── 상태 변수 ────────────────────────────────────────────────
+let currentMode = 'actual';
+let csvPayload  = null;   // CSV 첨부 시 파싱된 월별 데이터
+let csvYear     = null;
+let resultData  = null;
+let chartBar = null, chartPie = null;
+
+// ── 내장 데이터 (2021: 실제 / 2022~2025: 임의 / 2026: 임의 부분) ──
+const BUILT_IN = {
+  2021: {
+    full: true,
+    months: [
+      {m:1, label:'1월', kwh:41226,peak:192.0,prod:193813,season:'겨울',  hasData:true},
+      {m:2, label:'2월', kwh:41819,peak:188.0,prod:318100,season:'겨울',  hasData:true},
+      {m:3, label:'3월', kwh:49904,peak:192.0,prod:305207,season:'봄가을',hasData:true},
+      {m:4, label:'4월', kwh:47499,peak:185.0,prod:372920,season:'봄가을',hasData:true},
+      {m:5, label:'5월', kwh:45001,peak:185.0,prod:371916,season:'봄가을',hasData:true},
+      {m:6, label:'6월', kwh:50431,peak:192.0,prod:401242,season:'여름',  hasData:true},
+      {m:7, label:'7월', kwh:51122,peak:207.0,prod:394415,season:'여름',  hasData:true},
+      {m:8, label:'8월', kwh:41282,peak:207.0,prod:344205,season:'여름',  hasData:true},
+      {m:9, label:'9월', kwh:39374,peak:195.0,prod:292188,season:'봄가을',hasData:true},
+      {m:10,label:'10월',kwh:33125,peak:183.2,prod:244929,season:'봄가을',hasData:true},
+      {m:11,label:'11월',kwh:34531,peak:188.3,prod:272200,season:'겨울',  hasData:true},
+      {m:12,label:'12월',kwh:36137,peak:190.3,prod:280517,season:'겨울',  hasData:true},
+    ]
+  },
+  2022: {
+    full: true,
+    months: [
+      {m:1, label:'1월', kwh:43650,peak:192.1,prod:199841,season:'겨울',  hasData:true},
+      {m:2, label:'2월', kwh:43180,peak:193.6,prod:338726,season:'겨울',  hasData:true},
+      {m:3, label:'3월', kwh:53632,peak:192.6,prod:318465,season:'봄가을',hasData:true},
+      {m:4, label:'4월', kwh:48466,peak:186.6,prod:391733,season:'봄가을',hasData:true},
+      {m:5, label:'5월', kwh:45909,peak:186.4,prod:395194,season:'봄가을',hasData:true},
+      {m:6, label:'6월', kwh:53095,peak:193.7,prod:424312,season:'여름',  hasData:true},
+      {m:7, label:'7월', kwh:54674,peak:207.0,prod:424267,season:'여름',  hasData:true},
+      {m:8, label:'8월', kwh:43861,peak:209.8,prod:351454,season:'여름',  hasData:true},
+      {m:9, label:'9월', kwh:42476,peak:197.6,prod:296801,season:'봄가을',hasData:true},
+      {m:10,label:'10월',kwh:33940,peak:189.5,prod:259309,season:'봄가을',hasData:true},
+      {m:11,label:'11월',kwh:36926,peak:193.8,prod:286638,season:'겨울',  hasData:true},
+      {m:12,label:'12월',kwh:39021,peak:193.2,prod:295769,season:'겨울',  hasData:true},
+    ]
+  },
+  2023: {
+    full: true,
+    months: [
+      {m:1, label:'1월', kwh:45404,peak:199.1,prod:215374,season:'겨울',  hasData:true},
+      {m:2, label:'2월', kwh:45374,peak:195.6,prod:331065,season:'겨울',  hasData:true},
+      {m:3, label:'3월', kwh:53016,peak:196.5,prod:318542,season:'봄가을',hasData:true},
+      {m:4, label:'4월', kwh:50476,peak:187.9,prod:395599,season:'봄가을',hasData:true},
+      {m:5, label:'5월', kwh:48997,peak:189.9,prod:397497,season:'봄가을',hasData:true},
+      {m:6, label:'6월', kwh:53516,peak:196.3,prod:448478,season:'여름',  hasData:true},
+      {m:7, label:'7월', kwh:55702,peak:214.6,prod:414761,season:'여름',  hasData:true},
+      {m:8, label:'8월', kwh:45197,peak:210.7,prod:368156,season:'여름',  hasData:true},
+      {m:9, label:'9월', kwh:43772,peak:202.4,prod:317000,season:'봄가을',hasData:true},
+      {m:10,label:'10월',kwh:36171,peak:191.7,prod:270363,season:'봄가을',hasData:true},
+      {m:11,label:'11월',kwh:36688,peak:190.7,prod:289635,season:'겨울',  hasData:true},
+      {m:12,label:'12월',kwh:38484,peak:194.1,prod:313693,season:'겨울',  hasData:true},
+    ]
+  },
+  2024: {
+    full: true,
+    months: [
+      {m:1, label:'1월', kwh:48902,peak:202.8,prod:227618,season:'겨울',  hasData:true},
+      {m:2, label:'2월', kwh:48206,peak:203.3,prod:367781,season:'겨울',  hasData:true},
+      {m:3, label:'3월', kwh:57072,peak:202.2,prod:355778,season:'봄가을',hasData:true},
+      {m:4, label:'4월', kwh:54314,peak:197.5,prod:446354,season:'봄가을',hasData:true},
+      {m:5, label:'5월', kwh:51886,peak:194.6,prod:448594,season:'봄가을',hasData:true},
+      {m:6, label:'6월', kwh:58533,peak:200.9,prod:448577,season:'여름',  hasData:true},
+      {m:7, label:'7월', kwh:57912,peak:221.4,prod:468212,season:'여름',  hasData:true},
+      {m:8, label:'8월', kwh:47663,peak:216.4,prod:395496,season:'여름',  hasData:true},
+      {m:9, label:'9월', kwh:47033,peak:207.7,prod:351711,season:'봄가을',hasData:true},
+      {m:10,label:'10월',kwh:39257,peak:191.1,prod:289134,season:'봄가을',hasData:true},
+      {m:11,label:'11월',kwh:40493,peak:200.6,prod:309861,season:'겨울',  hasData:true},
+      {m:12,label:'12월',kwh:42273,peak:199.3,prod:323701,season:'겨울',  hasData:true},
+    ]
+  },
+  2025: {
+    full: true,
+    months: [
+      {m:1, label:'1월', kwh:48512,peak:209.6,prod:235575,season:'겨울',  hasData:true},
+      {m:2, label:'2월', kwh:48645,peak:201.5,prod:365708,season:'겨울',  hasData:true},
+      {m:3, label:'3월', kwh:60344,peak:208.9,prod:354337,season:'봄가을',hasData:true},
+      {m:4, label:'4월', kwh:56516,peak:199.2,prod:427824,season:'봄가을',hasData:true},
+      {m:5, label:'5월', kwh:53938,peak:198.6,prod:448643,season:'봄가을',hasData:true},
+      {m:6, label:'6월', kwh:59617,peak:201.7,prod:466805,season:'여름',  hasData:true},
+      {m:7, label:'7월', kwh:58585,peak:225.7,prod:479510,season:'여름',  hasData:true},
+      {m:8, label:'8월', kwh:49682,peak:220.2,prod:391797,season:'여름',  hasData:true},
+      {m:9, label:'9월', kwh:47514,peak:212.8,prod:333353,season:'봄가을',hasData:true},
+      {m:10,label:'10월',kwh:39055,peak:193.0,prod:295041,season:'봄가을',hasData:true},
+      {m:11,label:'11월',kwh:41397,peak:198.9,prod:320560,season:'겨울',  hasData:true},
+      {m:12,label:'12월',kwh:42769,peak:202.1,prod:340872,season:'겨울',  hasData:true},
+    ]
+  },
+  2026: {
+    full: false,
+    dataThru: 2,   // 2월까지 수집
+    months: [
+      {m:1, label:'1월', kwh:50310,peak:211.2,prod:241088,season:'겨울',  hasData:true},
+      {m:2, label:'2월', kwh:49870,peak:204.8,prod:375250,season:'겨울',  hasData:true},
+      {m:3, label:'3월', kwh:0,    peak:0,    prod:0,     season:'봄가을',hasData:false},
+      {m:4, label:'4월', kwh:0,    peak:0,    prod:0,     season:'봄가을',hasData:false},
+      {m:5, label:'5월', kwh:0,    peak:0,    prod:0,     season:'봄가을',hasData:false},
+      {m:6, label:'6월', kwh:0,    peak:0,    prod:0,     season:'여름',  hasData:false},
+      {m:7, label:'7월', kwh:0,    peak:0,    prod:0,     season:'여름',  hasData:false},
+      {m:8, label:'8월', kwh:0,    peak:0,    prod:0,     season:'여름',  hasData:false},
+      {m:9, label:'9월', kwh:0,    peak:0,    prod:0,     season:'봄가을',hasData:false},
+      {m:10,label:'10월',kwh:0,    peak:0,    prod:0,     season:'봄가을',hasData:false},
+      {m:11,label:'11월',kwh:0,    peak:0,    prod:0,     season:'겨울',  hasData:false},
+      {m:12,label:'12월',kwh:0,    peak:0,    prod:0,     season:'겨울',  hasData:false},
+    ]
+  }
+};
+
+const SEASONS = {1:'겨울',2:'겨울',3:'봄가을',4:'봄가을',5:'봄가을',
+                 6:'여름',7:'여름',8:'여름',9:'봄가을',10:'봄가을',11:'겨울',12:'겨울'};
+const MLABELS = {1:'1월',2:'2월',3:'3월',4:'4월',5:'5월',6:'6월',
+                 7:'7월',8:'8월',9:'9월',10:'10월',11:'11월',12:'12월'};
+
+// ── 연도 변경 ─────────────────────────────────────────────────
+function onYearChange() {
+  const y = parseInt(document.getElementById('selYear').value);
+  const d = BUILT_IN[y];
+  const isPartial = d && !d.full;
+  document.getElementById('monthRangeGroup').style.display = isPartial ? 'block' : 'none';
+  document.getElementById('modeGroup').style.display       = isPartial ? 'block' : 'none';
+  if (isPartial) {
+    document.getElementById('selMonthTo').value = d.dataThru;
+  }
+  updateDataStatus();
+}
+onYearChange();
+
+function setMode(m) {
+  currentMode = m;
+  document.getElementById('modeActual').classList.toggle('active', m==='actual');
+  document.getElementById('modeAnnual').classList.toggle('active', m==='annual');
+}
+
+function updateDataStatus() {
+  const y  = parseInt(document.getElementById('selYear').value);
+  const to = parseInt(document.getElementById('selMonthTo').value)||12;
+  const el = document.getElementById('dataStatus');
+  if (csvPayload) {
+    el.className = 'data-status ds-csv';
+    el.innerHTML = `📂 <b>CSV 첨부 데이터</b><br>${csvYear}년 파일 로드됨<br>내장 데이터 대신 사용`;
+  } else if (BUILT_IN[y] && BUILT_IN[y].full) {
+    el.className = 'data-status ds-full';
+    el.innerHTML = `✅ <b>완전 데이터</b><br>${y}년 1~12월 전체<br>${y===2021?'실제 KAMP 데이터':'시연용 임의 데이터'}`;
+  } else {
+    const months = to;
+    el.className = 'data-status ds-partial';
+    el.innerHTML = `⚠ <b>부분 데이터</b><br>${y}년 1~${to}월 (${months}개월)<br>나머지 ${12-months}개월 미수집`;
+  }
+}
+
+// ── CSV 업로드 처리 ───────────────────────────────────────────
+function onDragOver(e)  { e.preventDefault(); document.getElementById('csvUploadArea').classList.add('drag-over'); }
+function onDragLeave(e) { document.getElementById('csvUploadArea').classList.remove('drag-over'); }
+function onDrop(e) {
+  e.preventDefault();
+  document.getElementById('csvUploadArea').classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) parseCSVFile(file);
+}
+function onFileSelect(e) {
+  const file = e.target.files[0];
+  if (file) parseCSVFile(file);
+}
+
+function parseCSVFile(file) {
+  const fname = file.name;
+  // 파일명에서 연도 추출 시도 (예: power_estimate_full_2027.csv)
+  const yearMatch = fname.match(/(\d{4})/);
+  csvYear = yearMatch ? parseInt(yearMatch[1]) : null;
+
+  Papa.parse(file, {
+    header: true,
+    skipEmptyLines: true,
+    complete: function(res) {
+      const rows = res.data;
+      const cols = Object.keys(rows[0]||{});
+
+      // 컬럼 검증
+      const required = ['추정사용전력량','15분','생산량','월'];
+      const colCheck = document.getElementById('csvColCheck');
+      let allOk = true;
+      let checkHTML = '<b style="color:var(--text2)">컬럼 검증:</b><br>';
+      required.forEach(c => {
+        const ok = cols.includes(c);
+        if (!ok) allOk = false;
+        checkHTML += `<span class="${ok?'col-ok':'col-miss'}">${ok?'✓':'✗'} ${c}</span><br>`;
+      });
+      colCheck.innerHTML = checkHTML;
+      colCheck.className = 'csv-col-check show';
+
+      if (!allOk) {
+        alert('필수 컬럼이 부족합니다. 컬럼 검증 결과를 확인하세요.');
+        return;
+      }
+
+      // 월별 집계
+      const monthMap = {};
+      rows.forEach(r => {
+        const m = parseInt(r['월']);
+        if (!m || m<1||m>12) return;
+        if (!monthMap[m]) monthMap[m] = {kwh:0,peak:0,prod:0,cnt:0};
+        monthMap[m].kwh  += parseFloat(r['추정사용전력량'])||0;
+        monthMap[m].peak  = Math.max(monthMap[m].peak, parseFloat(r['15분'])||0);
+        monthMap[m].prod += parseInt(r['생산량'])||0;
+        monthMap[m].cnt++;
+      });
+
+      csvPayload = Array.from({length:12},(_,i)=>i+1).map(m => ({
+        m, label:MLABELS[m],
+        kwh:  Math.round(monthMap[m]?.kwh||0),
+        peak: +(monthMap[m]?.peak||0).toFixed(1),
+        prod: monthMap[m]?.prod||0,
+        season: SEASONS[m],
+        hasData: !!monthMap[m]
+      }));
+
+      // UI 업데이트
+      document.getElementById('csvFileInfo').className = 'csv-file-info show';
+      document.getElementById('csvFileName').textContent = fname;
+
+      // 연도 드롭다운 업데이트
+      if (csvYear && csvYear >= 2021) {
+        let opt = document.querySelector(`#selYear option[value="${csvYear}"]`);
+        if (!opt) {
+          opt = document.createElement('option');
+          opt.value = csvYear;
+          document.getElementById('selYear').appendChild(opt);
+        }
+        opt.textContent = `${csvYear}년 (CSV 첨부)`;
+        document.getElementById('selYear').value = csvYear;
+      }
+
+      // 전체 12개월인지 확인
+      const hasAll = csvPayload.every(r=>r.hasData);
+      document.getElementById('monthRangeGroup').style.display = hasAll ? 'none' : 'block';
+      document.getElementById('modeGroup').style.display       = hasAll ? 'none' : 'block';
+      updateDataStatus();
+    }
+  });
+}
+
+function removeCSV() {
+  csvPayload = null; csvYear = null;
+  document.getElementById('csvFileInfo').className = 'csv-file-info';
+  document.getElementById('csvColCheck').className = 'csv-col-check';
+  document.getElementById('csvFileInput').value = '';
+  // 연도 드롭다운 복원
+  const extra = document.querySelector('#selYear option:not([value="2021"],[value="2022"],[value="2023"],[value="2024"],[value="2025"],[value="2026"])');
+  if (extra) extra.remove();
+  document.getElementById('selYear').value = '2026';
+  onYearChange();
+}
+
+// ── 리포트 생성 ───────────────────────────────────────────────
+function generateReport() {
+  const year      = parseInt(document.getElementById('selYear').value);
+  const emission  = parseFloat(document.getElementById('inpEmission').value)  || 0.4781;
+  const basicRate = parseFloat(document.getElementById('inpBasicRate').value) || 8320;
+  const mode      = currentMode;
+
+  // 데이터 소스 결정: CSV > 내장
+  let allMonths, isCsvSource = false, isPartial = false;
+  if (csvPayload) {
+    allMonths   = csvPayload;
+    isCsvSource = true;
+    isPartial   = !allMonths.every(r=>r.hasData);
+  } else {
+    const d = BUILT_IN[year];
+    if (!d) { alert('해당 연도 데이터가 없습니다. CSV 파일을 첨부해주세요.'); return; }
+    allMonths = d.months;
+    isPartial = !d.full;
+  }
+
+  const monthTo = isPartial ? parseInt(document.getElementById('selMonthTo').value)||12 : 12;
+  const activeMonths  = allMonths.filter(r => r.m <= monthTo && r.hasData);
+  const dataMonths    = activeMonths.length;
+
+  if (dataMonths === 0) { alert('집계할 데이터가 없습니다.'); return; }
+
+  document.getElementById('loadingOverlay').classList.add('show');
+  document.getElementById('loadingText').textContent = `${year}년 GRI 302 집계 중…`;
+
+  setTimeout(() => {
+    const totalKwh  = activeMonths.reduce((s,r)=>s+r.kwh,0);
+    const totalProd = activeMonths.reduce((s,r)=>s+r.prod,0);
+    const maxPeak   = Math.max(...activeMonths.map(r=>r.peak));
+
+    const annualKwh  = Math.round(totalKwh / dataMonths * 12);
+    const annualProd = Math.round(totalProd/ dataMonths * 12);
+    const displayKwh = mode==='annual' ? annualKwh  : totalKwh;
+    const displayProd= mode==='annual' ? annualProd : totalProd;
+
+    const totalGj   = +(displayKwh * 0.0036).toFixed(1);
+    const scope2    = +(displayKwh / 1000 * emission).toFixed(2);
+    const intensity = displayProd > 0 ? +(displayKwh/displayProd).toFixed(4) : 0;
+    const save10    = Math.round(maxPeak * 0.1 * basicRate * 12);
+    const save20    = Math.round(maxPeak * 0.2 * basicRate * 12);
+    const annualBasic = Math.round(maxPeak * basicRate * 12);
+
+    resultData = { year, monthTo, totalKwh, displayKwh, totalGj, scope2,
+                   intensity, maxPeak, save10, save20, annualBasic,
+                   emission, basicRate, mode, dataMonths, isPartial, isCsvSource,
+                   activeMonths, allMonths };
+
+    renderResult(resultData);
+
+    const banner = document.getElementById('statusBanner');
+    banner.className = 'status-banner banner-ready';
+    const modeLabel = mode==='annual'?'연간 환산':'실측치';
+    const srcLabel  = isCsvSource ? 'CSV 첨부' : year===2021 ? '실제 데이터' : '시연용 임의 데이터';
+    banner.innerHTML = `<span>✅</span><span>
+      <b>${year}년 ${isPartial?`1~${monthTo}월`:'전체'}</b> GRI 302 생성 완료 —
+      ${modeLabel} | ${srcLabel} | 배출계수 ${emission} | 최대피크 ${maxPeak.toFixed(1)}kW
+    </span>`;
+
+    document.getElementById('btnDownload').disabled = false;
+    document.getElementById('loadingOverlay').classList.remove('show');
+  }, 600);
+}
+
+// ── 결과 렌더링 ───────────────────────────────────────────────
+function renderResult(r) {
+  const isAnnual = r.mode === 'annual';
+  const annTag   = isAnnual ? '<span class="annualized-tag">연간환산</span>' : '';
+  const srcNote  = r.isCsvSource ? '📂 CSV 첨부 데이터 기준' :
+                   r.year===2021 ? '🗄 실제 KAMP 데이터 기준 (okm_enriched_final.csv)' :
+                   '🔧 시연용 임의 데이터 기준';
+
+  const html = `
+    ${r.isCsvSource ? `<div class="csv-banner"><span>📂</span><span>CSV 첨부 파일 데이터로 리포트를 생성했습니다. ${srcNote}</span></div>` : ''}
+    ${r.isPartial ? `<div class="partial-banner"><span style="font-size:18px;flex-shrink:0;">⚠</span>
+      <div><b>${r.year}년 1~${r.monthTo}월 (${r.dataMonths}개월) 부분 데이터 기준입니다.</b><br>
+      ${r.monthTo+1}~12월 데이터 미수집. ${isAnnual?`<b>연간 환산 모드</b>: ${r.dataMonths}개월 평균 × 12개월 추정값입니다.`:''}</div></div>` : ''}
+    ${isAnnual ? `<div class="annualize-banner show"><span>🔮</span>
+      <span>연간 환산 모드 — ${r.dataMonths}개월 평균(${Math.round(r.totalKwh/r.dataMonths).toLocaleString()} kWh/월) × 12 = <b>${r.displayKwh.toLocaleString()} kWh</b></span></div>` : ''}
+
+    ${r.isPartial ? `<div class="progress-card">
+      <div class="progress-header"><span style="font-weight:500;">${r.year}년 데이터 수집 현황</span>
+        <span style="color:var(--green);font-weight:700;">${r.dataMonths}/12개월</span></div>
+      <div class="progress-months">${[1,2,3,4,5,6,7,8,9,10,11,12].map(m=>`
+        <div class="pm-item"><div class="pm-bar ${m<=r.monthTo?'pm-has':'pm-none'}">${m<=r.monthTo?'✓':''}</div>
+        <div class="pm-label">${m}월</div></div>`).join('')}</div></div>` : ''}
+
+    <div class="kpi-row">
+      ${kpiCard('연간 총 전력 소비량<br><span style="font-size:10px;">(GRI 302-1) '+annTag+'</span>',
+        (r.displayKwh/1000).toFixed(1), 'MWh &nbsp;·&nbsp; '+r.totalGj.toLocaleString()+' GJ',
+        'blue','badge-blue','GRI 302-1', isAnnual,
+        `${r.isPartial&&!isAnnual?r.dataMonths+'개월 실측 합산':'연간 총 전력 소비량'}. 1 kWh = 0.0036 GJ`,
+        `power_estimate_full_${r.year}.csv 추정사용전력량`)}
+      ${kpiCard('Scope 2 탄소 배출량 '+annTag+'<br><span style="font-size:10px;">(간접 배출)</span>',
+        r.scope2.toLocaleString(), `tCO₂eq ${r.isPartial&&!isAnnual?'/ '+r.dataMonths+'개월':'/ 년'}`,
+        'green','badge-green','Scope 2', isAnnual,
+        `공식: ${r.isPartial&&!isAnnual?r.dataMonths+'개월':'연간'} kWh ÷ 1000 × ${r.emission}`,
+        '환경부 국가 온실가스 인벤토리')}
+      ${kpiCard('에너지 집약도<br><span style="font-size:10px;">(GRI 302-3)</span>',
+        r.intensity.toFixed(4), 'kWh / 개',
+        'teal','badge-teal','GRI 302-3', false,
+        '생산량 1개당 소비 에너지. 낮을수록 효율적.',
+        `power_estimate_full_${r.year}.csv`)}
+      ${kpiCard('피크 10% 절감 시<br><span style="font-size:10px;">기본요금 절감액</span>',
+        (r.save10/10000).toFixed(0), '만원 / 년',
+        'yellow','badge-yellow','GRI 302-4', false,
+        `${r.maxPeak.toFixed(1)}kW × 0.1 × ${r.basicRate.toLocaleString()}원 × 12개월`,
+        '한전 전기요금표')}
+      ${kpiCard('피크 20% 절감 시<br><span style="font-size:10px;">기본요금 절감액</span>',
+        (r.save20/10000).toFixed(0), '만원 / 년',
+        'orange','badge-orange','GRI 302-4', false,
+        `${r.maxPeak.toFixed(1)}kW × 0.2 × ${r.basicRate.toLocaleString()}원 × 12개월`,
+        '한전 전기요금표')}
+    </div>
+
+    <div class="two-col">
+      <div class="card">
+        <div class="card-title">📊 월별 전력 소비량 (kWh)
+          <button class="tip-btn">?</button><div class="tip-box">
+            <div class="tip-title">월별 전력 소비량</div>
+            주황=여름, 초록=봄가을, 파랑=겨울, 회색=미수집
+            <div class="tip-src">출처: ${srcNote}</div></div>
+        </div>
+        <div style="position:relative;height:230px;"><canvas id="chartBar"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">🥧 계절별 전력 비율
+          <button class="tip-btn">?</button><div class="tip-box">
+            <div class="tip-title">계절별 전력 비율</div>수집된 월 기준 계절별 비중.
+            <div class="tip-src">출처: ${srcNote}</div></div>
+        </div>
+        <div style="position:relative;height:200px;"><canvas id="chartPie"></canvas></div>
+        <div id="pieLegend" style="display:flex;gap:12px;justify-content:center;margin-top:10px;font-size:11px;color:var(--text3);flex-wrap:wrap;"></div>
+      </div>
+    </div>
+
+    <div class="scenario-grid">
+      <div class="scenario-card sc-10">
+        <div class="sc-label">📉 피크 10% 절감 시나리오 (GRI 302-4)</div>
+        <div class="sc-val">${(r.save10/10000).toFixed(0)}만원 <span style="font-size:16px;">/ 년</span></div>
+        <div class="sc-desc">연간 기본요금 절감 기대액</div>
+        <div class="sc-formula">${r.maxPeak.toFixed(1)}kW × 10% × ${r.basicRate.toLocaleString()}원 × 12개월</div>
+      </div>
+      <div class="scenario-card sc-20">
+        <div class="sc-label">📉 피크 20% 절감 시나리오 (GRI 302-4)</div>
+        <div class="sc-val">${(r.save20/10000).toFixed(0)}만원 <span style="font-size:16px;">/ 년</span></div>
+        <div class="sc-desc">연간 기본요금 절감 기대액</div>
+        <div class="sc-formula">${r.maxPeak.toFixed(1)}kW × 20% × ${r.basicRate.toLocaleString()}원 × 12개월</div>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="card-title">📅 월별 에너지 집계표 (GRI 302-1 세부)
+        <button class="tip-btn">?</button><div class="tip-box">
+          <div class="tip-title">월별 집계표</div>
+          이탤릭 회색 행은 데이터 미수집 월입니다.
+          <div class="tip-src">출처: ${srcNote}</div></div>
+        <span style="margin-left:auto;font-size:11px;color:var(--text3);">배출계수 ${r.emission} | ${srcNote}</span>
+      </div>
+      <div class="tbl-wrap">
+        <table class="monthly">
+          <thead><tr>
+            <th style="text-align:center;">월</th><th style="text-align:center;">계절</th>
+            <th>전력 소비 (kWh)</th><th>전력 소비 (GJ)</th><th>최대 피크 (kW)</th>
+            <th>탄소 배출 (kgCO₂)</th><th>생산량 (개)</th><th>집약도 (kWh/개)</th>
+          </tr></thead>
+          <tbody id="monthlyBody"></tbody>
+        </table>
+      </div>
+      <div class="note-bar">※ 이탤릭 행: 미수집 월 | 탄소 배출 = kWh ÷ 1000 × ${r.emission} × 1000</div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-title">💡 연간 기본요금 현황
+        <button class="tip-btn">?</button><div class="tip-box">
+          <div class="tip-title">연간 기본요금</div>
+          최대 피크 × 단가 × 12개월. 단 1회 피크가 12개월 기본요금을 결정합니다.
+          <div class="tip-src">출처: 한전 전기요금표</div></div>
+        ${r.isPartial?`<span style="font-size:11px;color:var(--yellow);margin-left:8px;">⚠ 1~${r.monthTo}월 최대 피크 기준</span>`:''}
+      </div>
+      <div class="basic-grid">
+        <div class="basic-item"><div class="bi-label">최대 피크</div>
+          <div class="bi-val" style="color:var(--red);">${r.maxPeak.toFixed(1)}</div><div class="bi-unit">kW</div></div>
+        <div class="basic-item"><div class="bi-label">기본요금 단가</div>
+          <div class="bi-val">${r.basicRate.toLocaleString()}</div><div class="bi-unit">원/kW/월</div></div>
+        <div class="basic-item"><div class="bi-label">월 기본요금</div>
+          <div class="bi-val" style="color:var(--yellow);">${((r.maxPeak*r.basicRate)/10000).toFixed(0)}</div><div class="bi-unit">만원/월</div></div>
+        <div class="basic-item red-bg"><div class="bi-label">연간 기본요금 ${r.isPartial?'(추정)':''}</div>
+          <div class="bi-val" style="color:var(--red);">${(r.annualBasic/10000).toFixed(0)}</div><div class="bi-unit">만원/년</div></div>
+      </div>
+    </div>
+
+    <div class="note-bar" style="border:none;padding-bottom:24px;">
+      ※ 배출계수 ${r.emission} kgCO₂/kWh (환경부 고시 2022년) &nbsp;|&nbsp;
+      기본요금 ${r.basicRate.toLocaleString()}원/kW/월 (한전 산업용(을)) &nbsp;|&nbsp;
+      ${r.isPartial?`<b style="color:var(--yellow);">${r.year}년 1~${r.monthTo}월 기준 부분 집계</b>`:r.year+'년 전체'} &nbsp;|&nbsp;
+      ${srcNote}
+    </div>`;
+
+  document.getElementById('resultArea').innerHTML = html;
+  bindTooltips(document.getElementById('resultArea'));
+  fillTable(r);
+  drawCharts(r.allMonths, r.monthTo, r.maxPeak);
+}
+
+function kpiCard(label, val, unit, colorCls, badgeCls, badge, annualized, tipBody, tipSrc) {
+  return `<div class="kpi-card ${annualized?'kpi-annualized':''}">
+    <div class="kpi-top"><div class="kpi-label">${label}</div>
+      <button class="tip-btn">?</button><div class="tip-box">
+        <div class="tip-title">${badge}</div>${tipBody}
+        <div class="tip-src">출처: ${tipSrc}</div></div></div>
+    <div class="kpi-val ${colorCls}">${val}</div>
+    <div class="kpi-unit">${unit}</div>
+    <div class="kpi-badge ${badgeCls}">${badge}</div>
+  </div>`;
+}
+
+// ── 테이블 채우기 ─────────────────────────────────────────────
+function fillTable(r) {
+  const tbody = document.getElementById('monthlyBody');
+  if (!tbody) return;
+  let rows='', sumKwh=0, sumProd=0, sumCo2=0;
+  r.allMonths.forEach(row => {
+    if (!row.hasData || row.m > r.monthTo) {
+      rows += `<tr class="missing-row"><td>${row.label}</td><td>${row.season}</td>
+        <td colspan="6" style="text-align:center;font-size:11px;">— 미수집 —</td></tr>`;
+      return;
+    }
+    const gj   = (row.kwh*0.0036).toFixed(1);
+    const co2  = (row.kwh/1000*r.emission*1000).toFixed(1);
+    const inten= row.prod>0?(row.kwh/row.prod).toFixed(4):'-';
+    const barW = Math.round(row.peak/r.maxPeak*55);
+    sumKwh+=row.kwh; sumProd+=row.prod; sumCo2+=parseFloat(co2);
+    rows+=`<tr><td>${row.label}</td><td>${row.season}</td>
+      <td>${row.kwh.toLocaleString()}</td><td>${gj}</td>
+      <td>${row.peak.toFixed(1)}<span class="peak-bar" style="width:${barW}px;"></span></td>
+      <td>${parseFloat(co2).toLocaleString()}</td><td>${row.prod.toLocaleString()}</td><td>${inten}</td></tr>`;
+  });
+  const avgI = sumProd>0?(sumKwh/sumProd).toFixed(4):'-';
+  rows+=`<tr class="total-row"><td>${r.isPartial?`1~${r.monthTo}월 합계`:'합계'}</td><td>—</td>
+    <td>${sumKwh.toLocaleString()}</td><td>${(sumKwh*0.0036).toFixed(1)}</td>
+    <td>${r.maxPeak.toFixed(1)} (최대)</td><td>${sumCo2.toFixed(1)}</td>
+    <td>${sumProd.toLocaleString()}</td><td>${avgI}</td></tr>`;
+  tbody.innerHTML = rows;
+}
+
+// ── 차트 ─────────────────────────────────────────────────────
+function drawCharts(allMonths, monthTo, maxPeak) {
+  const labels  = allMonths.map(r=>r.label);
+  const kwhData = allMonths.map(r=>r.kwh);
+  const colors  = allMonths.map(r => {
+    if (!r.hasData||r.m>monthTo) return 'rgba(203,213,225,0.4)';
+    return r.season==='여름'?'rgba(234,88,12,0.75)':r.season==='겨울'?'rgba(37,99,235,0.65)':'rgba(5,150,105,0.70)';
+  });
+  if (chartBar) chartBar.destroy();
+  chartBar = new Chart(document.getElementById('chartBar'),{
+    type:'bar',
+    data:{labels,datasets:[{data:kwhData,backgroundColor:colors,borderRadius:5,borderSkipped:false}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>{
+        const m=allMonths[ctx.dataIndex];
+        return (m.hasData&&m.m<=monthTo)?` ${ctx.parsed.y.toLocaleString()} kWh`:' 미수집';
+      }}}},
+      scales:{x:{grid:{display:false},ticks:{font:{size:11}}},
+              y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},callback:v=>(v/1000).toFixed(0)+'k'}}}}
+  });
+
+  const has = allMonths.filter(r=>r.hasData&&r.m<=monthTo);
+  const sm = {'여름':0,'겨울':0,'봄가을':0};
+  has.forEach(r=>{sm[r.season]+=r.kwh;});
+  const pL=['여름 (6~8월)','겨울 (11~2월)','봄·가을'];
+  const pD=[sm['여름'],sm['겨울'],sm['봄가을']];
+  const pC=['rgba(234,88,12,0.8)','rgba(37,99,235,0.75)','rgba(5,150,105,0.75)'];
+  if (chartPie) chartPie.destroy();
+  chartPie = new Chart(document.getElementById('chartPie'),{
+    type:'doughnut',
+    data:{labels:pL,datasets:[{data:pD,backgroundColor:pC,borderWidth:2,borderColor:'#fff'}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'60%',
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>{
+        const pct=(ctx.parsed/pD.reduce((a,b)=>a+b,0)*100).toFixed(1);
+        return ` ${ctx.parsed.toLocaleString()} kWh (${pct}%)`;
+      }}}}}
+  });
+  const leg = document.getElementById('pieLegend');
+  if (leg) {
+    const tot = pD.reduce((a,b)=>a+b,0);
+    leg.innerHTML = pL.map((l,i)=>`<span style="display:flex;align-items:center;gap:4px;">
+      <span style="width:10px;height:10px;border-radius:2px;background:${pC[i]};display:inline-block;"></span>
+      ${l} ${tot>0?(pD[i]/tot*100).toFixed(1):0}%</span>`).join('');
+  }
+}
+
+// ── CSV 다운로드 ──────────────────────────────────────────────
+function downloadCSV() {
+  if (!resultData) return;
+  const r = resultData;
+  const mL = r.mode==='annual'?'연간환산':'실측치';
+  const srcL = r.isCsvSource?'CSV첨부':r.year===2021?'실제데이터':'시연용임의';
+  let csv = '\uFEFF';
+  csv += `GRI 302 ESG 리포트 — ${r.year}년 ${r.isPartial?`1~${r.monthTo}월`:'전체'} (${mL}) 올라운더팀\n\n`;
+  csv += `[요약]\n항목,값,단위\n`;
+  csv += `전력소비량,${r.displayKwh},kWh\n전력소비량(GJ),${r.totalGj},GJ\n`;
+  csv += `Scope2탄소배출,${r.scope2},tCO2eq\n에너지집약도,${r.intensity},kWh/개\n`;
+  csv += `최대피크,${r.maxPeak.toFixed(1)},kW\n연간기본요금,${r.annualBasic},원\n`;
+  csv += `피크10%절감,${r.save10},원/년\n피크20%절감,${r.save20},원/년\n\n`;
+  csv += `[월별]\n월,계절,상태,전력소비(kWh),전력소비(GJ),최대피크(kW),탄소배출(kgCO2),생산량(개),집약도(kWh/개)\n`;
+  r.allMonths.forEach(row=>{
+    const ok = row.hasData&&row.m<=r.monthTo;
+    if(!ok){csv+=`${row.label},${row.season},미수집,-,-,-,-,-,-\n`;return;}
+    const gj=(row.kwh*0.0036).toFixed(1),co2=(row.kwh/1000*r.emission*1000).toFixed(1),
+          in_=(row.prod>0?(row.kwh/row.prod).toFixed(4):'0');
+    csv+=`${row.label},${row.season},수집완료,${row.kwh},${gj},${row.peak.toFixed(1)},${co2},${row.prod},${in_}\n`;
+  });
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  a.download=`GRI302_${r.year}_${mL}_${srcL}_올라운더.csv`;
+  a.click();
+}
+</script>
+</body>
+</html>

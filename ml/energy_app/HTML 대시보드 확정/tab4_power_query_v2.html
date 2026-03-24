@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>전력 조회 — 월별 단일 조회 | 올라운더</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root {
+  --bg:#F4F6F9;--bg2:#FFFFFF;--bg3:#F8FAFC;
+  --border:rgba(0,0,0,0.08);--border2:rgba(0,0,0,0.15);
+  --text:#1E293B;--text2:#475569;--text3:#94A3B8;
+  --blue:#2563EB;--blue-dark:#1D4ED8;--blue-bg:rgba(37,99,235,0.08);
+  --green:#059669;--green-bg:rgba(5,150,105,0.08);
+  --yellow:#D97706;--yellow-bg:rgba(217,119,6,0.10);
+  --orange:#EA580C;--orange-bg:rgba(234,88,12,0.10);
+  --red:#DC2626;--red-bg:rgba(220,38,38,0.08);
+  --teal:#0D9488;--teal-bg:rgba(13,148,136,0.08);
+  --sidebar-w:230px;--header-h:52px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.6;overflow-x:hidden;}
+.header{position:fixed;top:0;left:0;right:0;z-index:100;height:var(--header-h);background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:12px;}
+.logo{background:var(--blue-dark);color:#fff;font-weight:700;font-size:13px;padding:4px 9px;border-radius:6px;}
+.header-title{font-size:14px;font-weight:500;}
+.header-right{margin-left:auto;font-size:11px;color:var(--text3);}
+/* 사이드바 */
+.sidebar{position:fixed;top:var(--header-h);left:0;bottom:0;width:var(--sidebar-w);background:var(--bg2);border-right:1px solid var(--border);overflow-y:auto;z-index:90;display:flex;flex-direction:column;}
+.nav-section{padding:14px 10px 4px;}
+.nav-label{font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;padding:6px 8px 4px;}
+.nav-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:6px;cursor:pointer;color:var(--text2);font-size:13px;transition:all .15s;}
+.nav-item:hover{background:var(--bg3);}
+.nav-item.active{background:var(--blue-bg);color:var(--blue);font-weight:500;}
+.nav-icon{font-size:15px;width:18px;text-align:center;}
+.sidebar-divider{border:none;border-top:1px solid var(--border);margin:8px 10px;}
+.form-section{padding:12px 12px 0;}
+.form-section-title{font-size:11px;font-weight:500;color:var(--text2);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:5px;}
+.form-group{margin-bottom:10px;}
+.form-label{font-size:11px;color:var(--text3);margin-bottom:3px;display:flex;align-items:center;gap:4px;}
+.form-select,.form-input{width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:6px 8px;font-size:12px;font-family:'Noto Sans KR',sans-serif;outline:none;transition:border .15s;}
+.form-select:focus,.form-input:focus{border-color:var(--blue);}
+/* 연월 선택 그리드 */
+.ym-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+/* 조회 모드 탭 */
+.mode-tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:12px;}
+.mode-tab{text-align:center;padding:7px 4px;border-radius:6px;border:1px solid var(--border2);cursor:pointer;font-size:11px;color:var(--text3);transition:all .15s;}
+.mode-tab.active{background:var(--blue-bg);border-color:var(--blue);color:var(--blue);font-weight:500;}
+.query-btn{width:calc(100% - 24px);margin:10px 12px 4px;padding:10px;background:var(--blue);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:background .15s;}
+.query-btn:hover{background:var(--blue-dark);}
+.query-btn:active{transform:scale(.98);}
+/* 툴팁 */
+.tip-btn{width:15px;height:15px;border-radius:50%;background:var(--text3);color:#fff;font-size:9px;font-weight:700;border:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s;}
+.tip-btn:hover{background:var(--blue);}
+.tip-box{display:none !important;}
+#g-tip{display:none;position:fixed;z-index:99999;width:240px;background:#1E293B;color:#F1F5F9;font-size:11px;line-height:1.6;padding:10px 12px;border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,.35);pointer-events:none;}
+#g-tip::before{content:'';position:absolute;left:-5px;top:10px;border:5px solid transparent;border-right-color:#1E293B;border-left:none;}
+.tip-title{font-weight:700;color:#fff;margin-bottom:4px;font-size:11px;}
+.tip-src{color:#94A3B8;font-size:10px;margin-top:5px;border-top:1px solid rgba(255,255,255,.1);padding-top:4px;}
+/* 메인 */
+.main{margin-left:var(--sidebar-w);margin-top:var(--header-h);padding:22px;}
+.page-title{font-size:20px;font-weight:700;margin-bottom:3px;}
+.page-caption{font-size:12px;color:var(--text3);margin-bottom:18px;}
+/* 조회 결과 헤더 배너 */
+.result-header{background:var(--bg2);border:1px solid var(--border);border-left:4px solid var(--blue);border-radius:10px;padding:14px 20px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;}
+.rh-title{font-size:16px;font-weight:700;}
+.rh-sub{font-size:12px;color:var(--text3);margin-top:2px;}
+.rh-right{display:flex;gap:8px;align-items:center;}
+.dl-btn{padding:6px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;color:var(--blue);font-family:'Noto Sans KR',sans-serif;}
+.dl-btn:hover{background:var(--blue-bg);border-color:var(--blue);}
+/* KPI 카드 — 핵심 요약 (상단 크게) */
+.summary-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px;}
+.sum-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;}
+.sum-card.accent{border-left:3px solid var(--blue);}
+.sum-label{font-size:11px;color:var(--text3);margin-bottom:5px;display:flex;align-items:center;gap:4px;}
+.sum-val{font-size:22px;font-weight:700;font-family:'JetBrains Mono',monospace;line-height:1.2;}
+.sum-unit{font-size:11px;color:var(--text3);margin-top:3px;}
+.sum-sub{font-size:10px;color:var(--text3);margin-top:4px;padding-top:4px;border-top:1px solid var(--border);}
+.blue{color:var(--blue)}.green{color:var(--green)}.red{color:var(--red)}.yellow{color:var(--yellow)}.orange{color:var(--orange)}.teal{color:var(--teal)}
+/* 인원 min-max 바 */
+.manpower-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-bottom:16px;}
+.mp-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+.mp-title{font-size:13px;font-weight:500;}
+.mp-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;}
+.mp-stat{text-align:center;padding:10px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);}
+.mp-stat-label{font-size:10px;color:var(--text3);margin-bottom:3px;}
+.mp-stat-val{font-size:18px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--blue);}
+.mp-stat-unit{font-size:10px;color:var(--text3);}
+/* 시간대별 분포 바 */
+.hour-bar-wrap{display:grid;grid-template-columns:repeat(24,1fr);gap:2px;align-items:end;height:60px;}
+.hour-bar{border-radius:2px 2px 0 0;min-height:4px;}
+.hour-labels{display:grid;grid-template-columns:repeat(24,1fr);gap:2px;margin-top:3px;}
+.hour-label{font-size:8px;color:var(--text3);text-align:center;}
+/* 2단 */
+.two-col{display:grid;grid-template-columns:3fr 2fr;gap:16px;margin-bottom:16px;}
+.two-col-eq{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:18px 20px;}
+.card-title{font-size:13px;font-weight:500;margin-bottom:14px;display:flex;align-items:center;gap:6px;}
+/* 요금 분석 */
+.cost-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);font-size:12px;}
+.cost-row:last-child{border-bottom:none;}
+.cost-label{color:var(--text2);}
+.cost-val{font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--blue);}
+.cost-total-val{font-size:16px;font-weight:700;color:var(--red);}
+/* 생산구분 분포 */
+.gmm-bar{margin-bottom:8px;}
+.gmm-row{display:flex;align-items:center;gap:8px;margin-bottom:5px;}
+.gmm-label{font-size:11px;color:var(--text2);min-width:80px;}
+.gmm-track{flex:1;height:10px;background:var(--bg3);border-radius:5px;overflow:hidden;}
+.gmm-fill{height:10px;border-radius:5px;}
+.gmm-cnt{font-size:10px;color:var(--text3);min-width:50px;text-align:right;font-family:'JetBrains Mono',monospace;}
+/* 전월 비교 */
+.compare-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px;}
+.compare-row:last-child{border-bottom:none;}
+.cmp-label{color:var(--text2);}
+.cmp-vals{display:flex;align-items:center;gap:8px;}
+.cmp-prev{color:var(--text3);font-family:'JetBrains Mono',monospace;font-size:11px;}
+.cmp-arrow{font-size:11px;}
+.cmp-curr{font-family:'JetBrains Mono',monospace;font-weight:700;}
+.cmp-diff{font-size:10px;padding:1px 5px;border-radius:3px;font-weight:700;}
+.diff-up{background:var(--red-bg);color:var(--red);}
+.diff-dn{background:var(--green-bg);color:var(--green);}
+.diff-eq{background:var(--bg3);color:var(--text3);}
+/* 로딩 */
+.loading-overlay{display:none;position:fixed;inset:0;background:rgba(248,250,252,.85);z-index:9000;align-items:center;justify-content:center;flex-direction:column;gap:12px;}
+.loading-overlay.show{display:flex;}
+.spinner{width:32px;height:32px;border:3px solid var(--border2);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+/* 초기 안내 */
+.empty-state{text-align:center;padding:60px 20px;color:var(--text3);}
+.empty-icon{font-size:44px;margin-bottom:14px;}
+.empty-title{font-size:15px;font-weight:500;color:var(--text2);margin-bottom:8px;}
+.empty-desc{font-size:12px;line-height:1.9;}
+.note-bar{font-size:10px;color:var(--text3);padding:8px 0 0;border-top:1px solid var(--border);margin-top:8px;}
+/* 등급 뱃지 */
+.grade-badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;}
+.gb-ok{background:var(--green-bg);color:var(--green);}
+.gb-caution{background:var(--blue-bg);color:var(--blue);}
+.gb-warn{background:var(--yellow-bg);color:var(--yellow);}
+.gb-danger{background:var(--orange-bg);color:var(--orange);}
+.gb-exceed{background:var(--red-bg);color:var(--red);}
+</style>
+</head>
+<body>
+<div id="g-tip"></div>
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div><div style="font-size:13px;color:var(--text2);">데이터 조회 중…</div></div>
+
+<div class="header">
+  <div class="logo">EP</div>
+  <span class="header-title">공장 전력 피크 예측 · 자원 최적화</span>
+  <div class="header-right">올라운더팀 2026</div>
+</div>
+
+<div class="sidebar">
+  <div class="nav-section">
+    <div class="nav-label">메뉴</div>
+    <div class="nav-item"><span class="nav-icon">📊</span>피크 예측</div>
+    <div class="nav-item active"><span class="nav-icon">⚡</span>전력 조회</div>
+    <div class="nav-item"><span class="nav-icon">⚙️</span>운영 최적화</div>
+    <div class="nav-item"><span class="nav-icon">💰</span>DR 시뮬레이션</div>
+    <div class="nav-item"><span class="nav-icon">🌿</span>ESG 리포트</div>
+  </div>
+  <div class="sidebar-divider"></div>
+
+  <div class="form-section">
+    <div class="form-section-title">🔍 조회 방식</div>
+
+    <!-- 조회 모드 -->
+    <div class="mode-tabs" style="margin-bottom:12px;">
+      <div class="mode-tab active" id="modeMonthTab" onclick="setMode('month')">월별 단일 조회</div>
+      <div class="mode-tab" id="modeRangeTab" onclick="setMode('range')">기간 범위 조회</div>
+    </div>
+
+    <!-- 월별 단일 조회 -->
+    <div id="monthModePanel">
+      <div class="form-group">
+        <div class="form-label">조회 연월
+          <button class="tip-btn">?</button>
+          <div class="tip-box"><div class="tip-title">연월 단일 조회</div>특정 연도의 특정 월 한 달치 데이터를 조회합니다.<br>과거 데이터가 기억 안 날 때 빠르게 확인하는 레퍼런스 용도입니다.<div class="tip-src">📂 출처: power_estimate_full_YYYY.csv</div></div>
+        </div>
+        <div class="ym-grid">
+          <select class="form-select" id="selYearM">
+            <option value="2021">2021년</option>
+            <option value="2022">2022년</option>
+            <option value="2023">2023년</option>
+            <option value="2024">2024년</option>
+            <option value="2025" selected>2025년</option>
+          </select>
+          <select class="form-select" id="selMonthM">
+            <option value="1">1월</option><option value="2">2월</option>
+            <option value="3">3월</option><option value="4">4월</option>
+            <option value="5">5월</option><option value="6">6월</option>
+            <option value="7" selected>7월</option><option value="8">8월</option>
+            <option value="9">9월</option><option value="10">10월</option>
+            <option value="11">11월</option><option value="12">12월</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- 기간 범위 조회 -->
+    <div id="rangeModePanel" style="display:none;">
+      <div class="form-group">
+        <div class="form-label">시작 연월
+          <button class="tip-btn">?</button>
+          <div class="tip-box"><div class="tip-title">기간 범위 조회</div>시작 연월부터 종료 연월까지의 범위를 조회합니다.<br>연도를 넘겨서 설정할 수도 있습니다. (예: 2023년 10월 ~ 2024년 3월)<div class="tip-src">📂 출처: power_estimate_full_YYYY.csv 다연도 집계</div></div>
+        </div>
+        <div class="ym-grid">
+          <select class="form-select" id="selYearFrom">
+            <option value="2021">2021년</option><option value="2022">2022년</option>
+            <option value="2023">2023년</option><option value="2024" selected>2024년</option>
+            <option value="2025">2025년</option>
+          </select>
+          <select class="form-select" id="selMonthFrom">
+            <option value="1">1월</option><option value="2">2월</option><option value="3">3월</option>
+            <option value="4">4월</option><option value="5">5월</option><option value="6">6월</option>
+            <option value="7">7월</option><option value="8">8월</option><option value="9">9월</option>
+            <option value="10" selected>10월</option><option value="11">11월</option><option value="12">12월</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <div class="form-label">종료 연월</div>
+        <div class="ym-grid">
+          <select class="form-select" id="selYearTo">
+            <option value="2021">2021년</option><option value="2022">2022년</option>
+            <option value="2023">2023년</option><option value="2024">2024년</option>
+            <option value="2025" selected>2025년</option>
+          </select>
+          <select class="form-select" id="selMonthTo">
+            <option value="1">1월</option><option value="2">2월</option><option value="3" selected>3월</option>
+            <option value="4">4월</option><option value="5">5월</option><option value="6">6월</option>
+            <option value="7">7월</option><option value="8">8월</option><option value="9">9월</option>
+            <option value="10">10월</option><option value="11">11월</option><option value="12">12월</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- 공통 옵션 -->
+    <div class="form-group" style="margin-top:4px;">
+      <div class="form-label">피크 임계값 (kW)
+        <button class="tip-btn">?</button>
+        <div class="tip-box"><div class="tip-title">피크 임계값</div>이 값 이상 피크 발생 시 위험 등급으로 표시됩니다.<div class="tip-src">📂 출처: 담당자 설정 / 계약 전력 기준</div></div>
+      </div>
+      <input type="number" class="form-input" id="inpThreshold" value="190" min="50" max="300">
+    </div>
+  </div>
+
+  <button class="query-btn" onclick="runQuery()">⚡ 조회</button>
+
+  <div class="sidebar-divider"></div>
+  <div class="form-section">
+    <div class="form-section-title">ℹ 데이터 출처</div>
+    <div style="font-size:10px;color:var(--text3);line-height:1.8;padding-bottom:12px;">
+      <b style="color:var(--text2);">2021년</b> 실제 KAMP 데이터<br>
+      <b style="color:var(--text2);">2022~2025년</b> 시연용 임의 데이터<br><br>
+      <b style="color:var(--text2);">인원 통계</b><br>
+      공장인원 컬럼 (시간별)<br>
+      min=0 (비가동), max=피크시간대<br>
+      avg=가동 시간대 평균
+    </div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="page-title">⚡ 전력 조회</div>
+  <div class="page-caption">연·월 단위 전력 실적 조회 | 총 전력량 · 최대 피크 · 평균 인원(min~max) · 전기요금 추정</div>
+
+  <div id="resultArea">
+    <div class="empty-state">
+      <div class="empty-icon">⚡</div>
+      <div class="empty-title">조회할 연월을 선택하고 조회 버튼을 눌러주세요</div>
+      <div class="empty-desc">
+        <b>월별 단일 조회</b> — 특정 달 하나를 딱 찍어서 확인<br>
+        총 전력량 · 최대/평균 피크 · 인원 min~max · 전기요금<br><br>
+        <b>기간 범위 조회</b> — 연도를 넘나드는 범위 선택 가능<br>
+        예: 2024년 10월 ~ 2025년 3월
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── 툴팁 ─────────────────────────────────────────────────────
+const gTip=document.getElementById('g-tip');
+let tipTimer=null;
+function bindTooltips(root){
+  (root||document).querySelectorAll('.tip-btn').forEach(btn=>{
+    if(btn._bound)return;btn._bound=true;
+    const box=btn.nextElementSibling;if(!box)return;
+    btn.addEventListener('mouseenter',e=>{clearTimeout(tipTimer);gTip.innerHTML=box.innerHTML;gTip.style.display='block';posT(e);});
+    btn.addEventListener('mousemove',posT);
+    btn.addEventListener('mouseleave',()=>{tipTimer=setTimeout(()=>{gTip.style.display='none';},100);});
+  });
+}
+function posT(e){const pad=12,tw=240,th=gTip.offsetHeight||100;let x=e.clientX+pad+6,y=e.clientY-10;if(x+tw>window.innerWidth-pad)x=e.clientX-tw-pad;if(y+th>window.innerHeight-pad)y=window.innerHeight-th-pad;if(y<pad)y=pad;gTip.style.left=x+'px';gTip.style.top=y+'px';}
+bindTooltips();
+
+// ── 조회 모드 ─────────────────────────────────────────────────
+let currentMode='month';
+function setMode(m){
+  currentMode=m;
+  document.getElementById('modeMonthTab').classList.toggle('active',m==='month');
+  document.getElementById('modeRangeTab').classList.toggle('active',m==='range');
+  document.getElementById('monthModePanel').style.display=m==='month'?'block':'none';
+  document.getElementById('rangeModePanel').style.display=m==='range'?'block':'none';
+}
+
+// ── 내장 데이터 ───────────────────────────────────────────────
+// 실제 2021년 데이터 + 2022~2025년 임의 데이터
+// 각 월별: kwh, peak최대, peak평균, 생산량, 인원max, 인원avg(가동시), 생산시간(h), gmm분포
+const MLABELS=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+const SEASONS={1:'겨울',2:'겨울',3:'봄가을',4:'봄가을',5:'봄가을',6:'여름',7:'여름',8:'여름',9:'봄가을',10:'봄가을',11:'겨울',12:'겨울'};
+const TOU_TARIFF={여름:191.6,겨울:109.8,봄가을:167.2};
+
+const DB={
+  2021:[
+    {m:1, kwh:41226,peakMax:192.0,peakAvg:80.9, prod:193813,manMax:13.4,manAvg:1.43,workH:262, gmm:{0:461,1:147,2:111,3:25}},
+    {m:2, kwh:41819,peakMax:188.0,peakAvg:89.1, prod:318100,manMax:48.4,manAvg:2.47,workH:402, gmm:{0:270,1:178,2:188,3:26}},
+    {m:3, kwh:49904,peakMax:192.0,peakAvg:96.8, prod:305207,manMax:16.7,manAvg:1.38,workH:386, gmm:{0:358,1:195,2:168,3:23}},
+    {m:4, kwh:47499,peakMax:185.0,peakAvg:91.1, prod:372920,manMax:11.7,manAvg:1.56,workH:470, gmm:{0:250,1:231,2:207,3:32}},
+    {m:5, kwh:45001,peakMax:185.0,peakAvg:83.1, prod:371916,manMax:11.9,manAvg:1.62,workH:436, gmm:{0:308,1:212,2:197,3:27}},
+    {m:6, kwh:50431,peakMax:192.0,peakAvg:99.6, prod:401242,manMax:8.8, manAvg:1.37,workH:497, gmm:{0:223,1:268,2:204,3:25}},
+    {m:7, kwh:51122,peakMax:207.0,peakAvg:100.2,prod:394415,manMax:12.1,manAvg:1.44,workH:441, gmm:{0:303,1:211,2:204,3:26}},
+    {m:8, kwh:41282,peakMax:207.0,peakAvg:78.8, prod:344205,manMax:13.2,manAvg:1.49,workH:383, gmm:{0:361,1:178,2:185,3:20}},
+    {m:9, kwh:39374,peakMax:195.0,peakAvg:77.2, prod:292188,manMax:10.0,manAvg:1.27,workH:502, gmm:{0:218,1:232,2:213,3:57}},
+    {m:10,kwh:33125,peakMax:183.2,peakAvg:62.0, prod:244929,manMax:10.5,manAvg:1.30,workH:563, gmm:{0:181,1:245,2:211,3:107}},
+    {m:11,kwh:34531,peakMax:188.3,peakAvg:66.1, prod:272200,manMax:10.7,manAvg:1.27,workH:555, gmm:{0:165,1:263,2:218,3:74}},
+    {m:12,kwh:36137,peakMax:190.3,peakAvg:66.9, prod:280517,manMax:10.8,manAvg:1.36,workH:573, gmm:{0:171,1:265,2:224,3:87}},
+  ],
+  2022:[
+    {m:1, kwh:43650,peakMax:192.1,peakAvg:84.7, prod:199841,manMax:14.1,manAvg:1.50,workH:275, gmm:{0:449,1:155,2:116,3:24}},
+    {m:2, kwh:43180,peakMax:193.6,peakAvg:91.8, prod:338726,manMax:50.8,manAvg:2.59,workH:422, gmm:{0:250,1:187,2:197,3:27}},
+    {m:3, kwh:53632,peakMax:192.6,peakAvg:101.6,prod:318465,manMax:17.5,manAvg:1.45,workH:405, gmm:{0:339,1:205,2:176,3:24}},
+    {m:4, kwh:48466,peakMax:186.6,peakAvg:93.4, prod:391733,manMax:12.3,manAvg:1.64,workH:493, gmm:{0:227,1:243,2:217,3:33}},
+    {m:5, kwh:45909,peakMax:186.4,peakAvg:84.7, prod:395194,manMax:12.5,manAvg:1.70,workH:458, gmm:{0:286,1:223,2:207,3:28}},
+    {m:6, kwh:53095,peakMax:193.7,peakAvg:104.6,prod:424312,manMax:9.2, manAvg:1.44,workH:522, gmm:{0:198,1:282,2:214,3:26}},
+    {m:7, kwh:54674,peakMax:207.0,peakAvg:105.2,prod:424267,manMax:12.7,manAvg:1.51,workH:463, gmm:{0:281,1:222,2:214,3:27}},
+    {m:8, kwh:43861,peakMax:209.8,peakAvg:82.7, prod:351454,manMax:13.9,manAvg:1.57,workH:402, gmm:{0:342,1:187,2:194,3:21}},
+    {m:9, kwh:42476,peakMax:197.6,peakAvg:81.1, prod:296801,manMax:10.5,manAvg:1.33,workH:527, gmm:{0:193,1:244,2:224,3:59}},
+    {m:10,kwh:33940,peakMax:189.5,peakAvg:63.1, prod:259309,manMax:11.0,manAvg:1.37,workH:591, gmm:{0:153,1:258,2:222,3:112}},
+    {m:11,kwh:36926,peakMax:193.8,peakAvg:69.4, prod:286638,manMax:11.2,manAvg:1.33,workH:583, gmm:{0:137,1:276,2:229,3:78}},
+    {m:12,kwh:39021,peakMax:193.2,peakAvg:72.2, prod:295769,manMax:11.3,manAvg:1.43,workH:601, gmm:{0:143,1:278,2:235,3:91}},
+  ],
+  2023:[
+    {m:1, kwh:45404,peakMax:199.1,peakAvg:88.6, prod:215374,manMax:14.8,manAvg:1.57,workH:288, gmm:{0:436,1:163,2:122,3:23}},
+    {m:2, kwh:45374,peakMax:195.6,peakAvg:96.5, prod:331065,manMax:53.3,manAvg:2.72,workH:443, gmm:{0:229,1:196,2:207,3:28}},
+    {m:3, kwh:53016,peakMax:196.5,peakAvg:102.4,prod:318542,manMax:18.4,manAvg:1.52,workH:425, gmm:{0:319,1:215,2:185,3:25}},
+    {m:4, kwh:50476,peakMax:187.9,peakAvg:97.2, prod:395599,manMax:12.9,manAvg:1.72,workH:516, gmm:{0:204,1:255,2:228,3:33}},
+    {m:5, kwh:48997,peakMax:189.9,peakAvg:90.4, prod:397497,manMax:13.1,manAvg:1.78,workH:480, gmm:{0:264,1:234,2:217,3:29}},
+    {m:6, kwh:53516,peakMax:196.3,peakAvg:105.4,prod:448478,manMax:9.7, manAvg:1.51,workH:548, gmm:{0:172,1:296,2:225,3:27}},
+    {m:7, kwh:55702,peakMax:214.6,peakAvg:107.2,prod:414761,manMax:13.3,manAvg:1.58,workH:486, gmm:{0:258,1:233,2:225,3:28}},
+    {m:8, kwh:45197,peakMax:210.7,peakAvg:85.6, prod:368156,manMax:14.6,manAvg:1.64,workH:422, gmm:{0:322,1:196,2:204,3:22}},
+    {m:9, kwh:43772,peakMax:202.4,peakAvg:84.1, prod:317000,manMax:11.0,manAvg:1.40,workH:553, gmm:{0:167,1:256,2:235,3:62}},
+    {m:10,kwh:36171,peakMax:191.7,peakAvg:67.8, prod:270363,manMax:11.6,manAvg:1.44,workH:620, gmm:{0:124,1:271,2:233,3:116}},
+    {m:11,kwh:36688,peakMax:190.7,peakAvg:70.2, prod:289635,manMax:11.8,manAvg:1.40,workH:612, gmm:{0:108,1:290,2:240,3:82}},
+    {m:12,kwh:38484,peakMax:194.1,peakAvg:73.4, prod:313693,manMax:11.9,manAvg:1.50,workH:632, gmm:{0:112,1:292,2:247,3:96}},
+  ],
+  2024:[
+    {m:1, kwh:48902,peakMax:202.8,peakAvg:94.8, prod:227618,manMax:15.5,manAvg:1.65,workH:301, gmm:{0:423,1:171,2:128,3:22}},
+    {m:2, kwh:48206,peakMax:203.3,peakAvg:102.5,prod:367781,manMax:55.9,manAvg:2.86,workH:465, gmm:{0:207,1:206,2:218,3:29}},
+    {m:3, kwh:57072,peakMax:202.2,peakAvg:110.6,prod:355778,manMax:19.3,manAvg:1.60,workH:446, gmm:{0:298,1:226,2:195,3:26}},
+    {m:4, kwh:54314,peakMax:197.5,peakAvg:104.4,prod:446354,manMax:13.5,manAvg:1.81,workH:542, gmm:{0:178,1:268,2:240,3:34}},
+    {m:5, kwh:51886,peakMax:194.6,peakAvg:95.8, prod:448594,manMax:13.8,manAvg:1.87,workH:504, gmm:{0:240,1:246,2:228,3:30}},
+    {m:6, kwh:58533,peakMax:200.9,peakAvg:115.8,prod:448577,manMax:10.2,manAvg:1.59,workH:576, gmm:{0:144,1:311,2:237,3:28}},
+    {m:7, kwh:57912,peakMax:221.4,peakAvg:111.6,prod:468212,manMax:14.0,manAvg:1.66,workH:510, gmm:{0:234,1:245,2:237,3:28}},
+    {m:8, kwh:47663,peakMax:216.4,peakAvg:89.6, prod:395496,manMax:15.3,manAvg:1.72,workH:443, gmm:{0:301,1:206,2:214,3:23}},
+    {m:9, kwh:47033,peakMax:207.7,peakAvg:90.4, prod:351711,manMax:11.5,manAvg:1.47,workH:580, gmm:{0:140,1:269,2:248,3:63}},
+    {m:10,kwh:39257,peakMax:191.1,peakAvg:73.2, prod:289134,manMax:12.2,manAvg:1.51,workH:651, gmm:{0:93, 1:285,2:245,3:121}},
+    {m:11,kwh:40493,peakMax:200.6,peakAvg:77.8, prod:309861,manMax:12.4,manAvg:1.47,workH:642, gmm:{0:78, 1:305,2:253,3:84}},
+    {m:12,kwh:42273,peakMax:199.3,peakAvg:81.2, prod:323701,manMax:12.5,manAvg:1.57,workH:663, gmm:{0:81, 1:307,2:260,3:96}},
+  ],
+  2025:[
+    {m:1, kwh:48512,peakMax:209.6,peakAvg:95.6, prod:235575,manMax:16.2,manAvg:1.73,workH:312, gmm:{0:412,1:179,2:134,3:23}},
+    {m:2, kwh:48645,peakMax:201.5,peakAvg:103.6,prod:365708,manMax:58.6,manAvg:3.00,workH:487, gmm:{0:185,1:216,2:229,3:30}},
+    {m:3, kwh:60344,peakMax:208.9,peakAvg:116.4,prod:354337,manMax:20.2,manAvg:1.68,workH:468, gmm:{0:276,1:237,2:205,3:27}},
+    {m:4, kwh:56516,peakMax:199.2,peakAvg:108.6,prod:427824,manMax:14.2,manAvg:1.90,workH:569, gmm:{0:151,1:281,2:252,3:36}},
+    {m:5, kwh:53938,peakMax:198.6,peakAvg:99.4, prod:448643,manMax:14.5,manAvg:1.96,workH:529, gmm:{0:215,1:258,2:240,3:31}},
+    {m:6, kwh:59617,peakMax:201.7,peakAvg:117.6,prod:466805,manMax:10.7,manAvg:1.67,workH:605, gmm:{0:115,1:327,2:250,3:28}},
+    {m:7, kwh:58585,peakMax:225.7,peakAvg:112.9,prod:479510,manMax:14.7,manAvg:1.74,workH:535, gmm:{0:209,1:258,2:249,3:28}},
+    {m:8, kwh:49682,peakMax:220.2,peakAvg:95.6, prod:391797,manMax:16.1,manAvg:1.81,workH:465, gmm:{0:279,1:216,2:225,3:24}},
+    {m:9, kwh:47514,peakMax:212.8,peakAvg:91.5, prod:333353,manMax:12.1,manAvg:1.54,workH:609, gmm:{0:111,1:283,2:261,3:65}},
+    {m:10,kwh:39055,peakMax:193.0,peakAvg:74.2, prod:295041,manMax:12.8,manAvg:1.59,workH:683, gmm:{0:61, 1:300,2:257,3:126}},
+    {m:11,kwh:41397,peakMax:198.9,peakAvg:79.5, prod:320560,manMax:13.0,manAvg:1.54,workH:674, gmm:{0:46, 1:320,2:266,3:88}},
+    {m:12,kwh:42769,peakMax:202.1,peakAvg:83.8, prod:340872,manMax:13.1,manAvg:1.65,workH:695, gmm:{0:49, 1:323,2:273,3:99}},
+  ]
+};
+
+// 24시간 피크 패턴 (계절 기반 규칙 생성)
+function hourlyPeak(row, season) {
+  const result=[];
+  for(let h=0;h<24;h++){
+    let base=row.peakAvg;
+    if(h>=0&&h<=6)   base*=0.45+Math.random()*0.1;
+    else if(h>=7&&h<=8)  base*=0.75+Math.random()*0.1;
+    else if(h>=9&&h<=12) base*=0.95+Math.random()*0.15;
+    else if(h===13)  base*=0.75+Math.random()*0.1;
+    else if(h>=14&&h<=17)base*=0.98+Math.random()*0.12;
+    else if(h>=18&&h<=19)base*=0.85+Math.random()*0.1;
+    else if(h>=20&&h<=21)base*=0.65+Math.random()*0.1;
+    else             base*=0.48+Math.random()*0.08;
+    result.push(Math.min(Math.round(base*10)/10, row.peakMax));
+  }
+  return result;
+}
+
+function estCost(row, season) {
+  const tariff = TOU_TARIFF[season]||167.2;
+  const usage  = Math.round(row.kwh * tariff);
+  const basic  = Math.round(row.peakMax * 8320);
+  return { usage, basic, total: usage+basic, tariff };
+}
+
+function gradeInfo(peak, thr) {
+  if(peak>=thr)      return{label:'초과',cls:'gb-exceed',color:'#DC2626'};
+  if(peak>=thr*0.92) return{label:'위험',cls:'gb-danger',color:'#EA580C'};
+  if(peak>=thr*0.80) return{label:'경고',cls:'gb-warn',  color:'#D97706'};
+  if(peak>=thr*0.65) return{label:'주의',cls:'gb-caution',color:'#2563EB'};
+  return                    {label:'양호',cls:'gb-ok',   color:'#059669'};
+}
+
+let chartHour=null, chartGmm=null;
+
+// ── 조회 실행 ─────────────────────────────────────────────────
+function runQuery() {
+  document.getElementById('loadingOverlay').classList.add('show');
+  setTimeout(()=>{
+    if(currentMode==='month') runMonthQuery();
+    else runRangeQuery();
+    document.getElementById('loadingOverlay').classList.remove('show');
+  }, 400);
+}
+
+function runMonthQuery() {
+  const year  = parseInt(document.getElementById('selYearM').value);
+  const month = parseInt(document.getElementById('selMonthM').value);
+  const thr   = parseFloat(document.getElementById('inpThreshold').value)||190;
+  const row   = DB[year][month-1];
+  const season= SEASONS[month];
+  renderMonthResult(year, month, row, season, thr);
+}
+
+function runRangeQuery() {
+  const yFrom = parseInt(document.getElementById('selYearFrom').value);
+  const mFrom = parseInt(document.getElementById('selMonthFrom').value);
+  const yTo   = parseInt(document.getElementById('selYearTo').value);
+  const mTo   = parseInt(document.getElementById('selMonthTo').value);
+  const thr   = parseFloat(document.getElementById('inpThreshold').value)||190;
+
+  // 범위 내 모든 월 수집
+  const rows=[];
+  for(let y=yFrom;y<=yTo;y++){
+    const mStart=(y===yFrom)?mFrom:1;
+    const mEnd  =(y===yTo)?mTo:12;
+    for(let m=mStart;m<=mEnd;m++){
+      if(DB[y]&&DB[y][m-1]) rows.push({...DB[y][m-1],year:y,season:SEASONS[m]});
+    }
+  }
+  if(rows.length===0){alert('해당 범위의 데이터가 없습니다.');return;}
+  renderRangeResult(yFrom,mFrom,yTo,mTo,rows,thr);
+}
+
+// ── 월별 단일 조회 결과 ───────────────────────────────────────
+function renderMonthResult(year, month, row, season, thr) {
+  const cost  = estCost(row, season);
+  const grade = gradeInfo(row.peakMax, thr);
+  const srcLabel = year===2021?'실제 KAMP 데이터':'시연용 임의 데이터';
+  const hourData = hourlyPeak(row, season);
+
+  // 전월 데이터
+  let prevRow=null, prevSeason=null;
+  if(month>1){ prevRow=DB[year][month-2]; prevSeason=SEASONS[month-1]; }
+  else if(year>2021){ prevRow=DB[year-1][11]; prevSeason=SEASONS[12]; }
+
+  const html=`
+  <!-- 조회 결과 헤더 -->
+  <div class="result-header">
+    <div>
+      <div class="rh-title">📅 ${year}년 ${MLABELS[month-1]} 전력 실적</div>
+      <div class="rh-sub">${season} · ${srcLabel} · 임계값 ${thr}kW</div>
+    </div>
+    <div class="rh-right">
+      <span class="grade-badge ${grade.cls}" style="font-size:12px;padding:4px 12px;">${grade.label}</span>
+      <button class="dl-btn" onclick="dlMonth(${year},${month})">⬇ CSV</button>
+    </div>
+  </div>
+
+  <!-- 핵심 KPI 5개 -->
+  <div class="summary-grid">
+    <div class="sum-card accent">
+      <div class="sum-label">총 전력 소비량
+        <button class="tip-btn">?</button>
+        <div class="tip-box"><div class="tip-title">총 전력 소비량</div>${year}년 ${MLABELS[month-1]} 한 달 동안 공장이 사용한 총 전력량입니다.<br>추정사용전력량 744시간 합산 기준입니다.<div class="tip-src">📂 출처: power_estimate_full_${year}.csv 추정사용전력량</div></div>
+      </div>
+      <div class="sum-val blue">${row.kwh.toLocaleString()}</div>
+      <div class="sum-unit">kWh</div>
+      <div class="sum-sub">= ${(row.kwh/1000).toFixed(1)} MWh · ${(row.kwh*0.0036).toFixed(1)} GJ</div>
+    </div>
+
+    <div class="sum-card">
+      <div class="sum-label">최대 피크
+        <button class="tip-btn">?</button>
+        <div class="tip-box"><div class="tip-title">최대 피크 (kW)</div>이 달 중 가장 높았던 15분 최대수요전력입니다.<br>연간 기본요금을 결정하는 핵심 수치입니다.<div class="tip-src">📂 출처: power_estimate_full_${year}.csv 15분 컬럼</div></div>
+      </div>
+      <div class="sum-val ${grade.label==='초과'||grade.label==='위험'?'red':'yellow'}">${row.peakMax.toFixed(1)}</div>
+      <div class="sum-unit">kW</div>
+      <div class="sum-sub">평균 피크: ${row.peakAvg.toFixed(1)} kW</div>
+    </div>
+
+    <div class="sum-card">
+      <div class="sum-label">공장 인원 (min ~ max)
+        <button class="tip-btn">?</button>
+        <div class="tip-box"><div class="tip-title">공장 인원 min ~ max</div>min=0: 비가동(심야·휴일) 시간대<br>max: 이 달 가장 많이 투입된 시간대 인원<br>avg: 가동 시간대(인원>0)만의 평균<div class="tip-src">📂 출처: power_estimate_full_${year}.csv 공장인원 컬럼</div></div>
+      </div>
+      <div class="sum-val teal">0 ~ ${row.manMax.toFixed(1)}</div>
+      <div class="sum-unit">명</div>
+      <div class="sum-sub">가동 시 평균 ${row.manAvg.toFixed(2)}명 · 가동 ${row.workH}시간</div>
+    </div>
+
+    <div class="sum-card">
+      <div class="sum-label">총 생산량
+        <button class="tip-btn">?</button>
+        <div class="tip-box"><div class="tip-title">총 생산량</div>이 달 생산된 볼트·너트 총 개수입니다.<br>에너지 집약도 계산에 사용됩니다.<div class="tip-src">📂 출처: power_estimate_full_${year}.csv 생산량 컬럼</div></div>
+      </div>
+      <div class="sum-val green">${(row.prod/10000).toFixed(1)}</div>
+      <div class="sum-unit">만 개</div>
+      <div class="sum-sub">집약도: ${(row.kwh/row.prod).toFixed(4)} kWh/개</div>
+    </div>
+
+    <div class="sum-card">
+      <div class="sum-label">추정 전기요금
+        <button class="tip-btn">?</button>
+        <div class="tip-box"><div class="tip-title">추정 전기요금</div>사용량요금(${cost.tariff}원/kWh × ${row.kwh.toLocaleString()}kWh) + 기본요금(${row.peakMax.toFixed(0)}kW × 8,320원) 합산입니다.<br>기후환경요금·연료비조정요금 미포함 추정치입니다.<div class="tip-src">📂 출처: 한전 산업용(을) 기준 추정</div></div>
+      </div>
+      <div class="sum-val orange">${(cost.total/10000).toFixed(1)}</div>
+      <div class="sum-unit">만원</div>
+      <div class="sum-sub">사용 ${(cost.usage/10000).toFixed(1)} + 기본 ${(cost.basic/10000).toFixed(1)} 만원</div>
+    </div>
+  </div>
+
+  <!-- 인원 min-max 카드 -->
+  <div class="manpower-card">
+    <div class="mp-header">
+      <span class="mp-title">👷 공장 인원 현황 (${year}년 ${MLABELS[month-1]})
+        <button class="tip-btn">?</button>
+        <div class="tip-box"><div class="tip-title">공장 인원 상세</div>시간 단위 공장인원 컬럼에서 집계한 값입니다.<br>min=0은 비가동(심야·주말·공휴일) 시간대이며 정상입니다.<br>max는 생산이 가장 활발했던 시간대의 투입 인원입니다.<div class="tip-src">📂 출처: power_estimate_full_${year}.csv 공장인원</div></div>
+      </span>
+    </div>
+    <div class="mp-stats">
+      <div class="mp-stat">
+        <div class="mp-stat-label">최솟값 (비가동)</div>
+        <div class="mp-stat-val">0</div>
+        <div class="mp-stat-unit">명 (심야·휴일)</div>
+      </div>
+      <div class="mp-stat">
+        <div class="mp-stat-label">가동 시 평균</div>
+        <div class="mp-stat-val" style="color:var(--green);">${row.manAvg.toFixed(2)}</div>
+        <div class="mp-stat-unit">명 (가동 ${row.workH}h 기준)</div>
+      </div>
+      <div class="mp-stat">
+        <div class="mp-stat-label">최댓값 (피크 시)</div>
+        <div class="mp-stat-val" style="color:var(--orange);">${row.manMax.toFixed(1)}</div>
+        <div class="mp-stat-unit">명 (최대 투입)</div>
+      </div>
+    </div>
+    <!-- 가동/비가동 시간 분포 바 -->
+    <div style="display:flex;gap:10px;font-size:12px;align-items:center;">
+      <span style="color:var(--text3);">가동 시간 비율</span>
+      <div style="flex:1;height:10px;background:var(--bg3);border-radius:5px;overflow:hidden;">
+        <div style="height:10px;width:${Math.round(row.workH/744*100)}%;background:var(--green);border-radius:5px;"></div>
+      </div>
+      <span style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--green);">${row.workH}h / 744h (${Math.round(row.workH/744*100)}%)</span>
+    </div>
+    <div class="note-bar">※ 744시간 = ${MLABELS[month-1]} 전체 (31일 기준 기준 근사치 사용)</div>
+  </div>
+
+  <!-- 시간대별 피크 차트 + 요금 분석 -->
+  <div class="two-col">
+    <div class="card">
+      <div class="card-title">📊 시간대별 피크 패턴 (시뮬레이션)
+        <button class="tip-btn">?</button>
+        <div class="tip-box"><div class="tip-title">시간대별 피크 패턴</div>월별 집계 통계를 기반으로 시간대별 피크를 시뮬레이션한 참고용 차트입니다.<br>실제 시간 단위 데이터가 연동되면 실측값으로 표시됩니다.<div class="tip-src">📂 출처: 월별 평균피크 × 시간대 패턴 시뮬</div></div>
+      </div>
+      <div style="position:relative;height:200px;"><canvas id="chartHour"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">💰 전기요금 구조
+        <button class="tip-btn">?</button>
+        <div class="tip-box"><div class="tip-title">전기요금 구조</div>한전 산업용(을) 기준 추정값입니다.<br>계절 요금단가: ${cost.tariff}원/kWh (${season})<div class="tip-src">📂 출처: 한전 전기요금표</div></div>
+      </div>
+      <div class="cost-row"><span class="cost-label">사용량요금 (${cost.tariff}원 × ${row.kwh.toLocaleString()}kWh)</span><span class="cost-val">${(cost.usage/10000).toFixed(1)}만원</span></div>
+      <div class="cost-row"><span class="cost-label">기본요금 (${row.peakMax.toFixed(0)}kW × 8,320원)</span><span class="cost-val">${(cost.basic/10000).toFixed(1)}만원</span></div>
+      <div class="cost-row" style="font-weight:700;"><span class="cost-label" style="color:var(--text);">추정 합계</span><span class="cost-total-val">${(cost.total/10000).toFixed(1)}만원</span></div>
+      <div style="height:8px;background:var(--bg3);border-radius:4px;margin-top:10px;overflow:hidden;">
+        <div style="height:8px;width:${Math.round(cost.usage/cost.total*100)}%;background:var(--blue);border-radius:4px 0 0 4px;display:inline-block;"></div>
+        <div style="height:8px;width:${Math.round(cost.basic/cost.total*100)}%;background:var(--orange);border-radius:0 4px 4px 0;display:inline-block;"></div>
+      </div>
+      <div style="display:flex;gap:12px;margin-top:6px;font-size:10px;color:var(--text3);">
+        <span><span style="display:inline-block;width:8px;height:8px;background:var(--blue);border-radius:2px;margin-right:3px;"></span>사용량 ${Math.round(cost.usage/cost.total*100)}%</span>
+        <span><span style="display:inline-block;width:8px;height:8px;background:var(--orange);border-radius:2px;margin-right:3px;"></span>기본요금 ${Math.round(cost.basic/cost.total*100)}%</span>
+      </div>
+      <div class="note-bar">※ 기후환경요금·연료비조정요금 미포함</div>
+    </div>
+  </div>
+
+  <!-- 생산구분 분포 + 전월 비교 -->
+  <div class="two-col-eq">
+    <div class="card">
+      <div class="card-title">🏭 생산구분 (GMM) 분포
+        <button class="tip-btn">?</button>
+        <div class="tip-box"><div class="tip-title">GMM 생산구분 분포</div>0=비가동, 1=고생산(145~182kW), 2=중생산(92~131kW), 3=저생산(21~68kW)<br>구분별 시간 수로 이 달 공장 가동 패턴을 파악합니다.<div class="tip-src">📂 출처: GMM 군집 분류 결과</div></div>
+      </div>
+      ${[
+        {k:0,label:'구분0 비가동',color:'#94A3B8'},
+        {k:1,label:'구분1 고생산',color:'#DC2626'},
+        {k:2,label:'구분2 중생산',color:'#EA580C'},
+        {k:3,label:'구분3 저생산',color:'#059669'},
+      ].map(g=>{
+        const cnt=row.gmm[g.k]||0;
+        const total=Object.values(row.gmm).reduce((a,b)=>a+b,0);
+        const pct=Math.round(cnt/total*100);
+        return `<div class="gmm-bar">
+          <div class="gmm-row">
+            <span class="gmm-label">${g.label}</span>
+            <div class="gmm-track"><div class="gmm-fill" style="width:${pct}%;background:${g.color};opacity:.75;"></div></div>
+            <span class="gmm-cnt">${cnt}h (${pct}%)</span>
+          </div>
+        </div>`;
+      }).join('')}
+      <div class="note-bar">※ 합계 ${Object.values(row.gmm).reduce((a,b)=>a+b,0)}시간</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📈 전월 대비 비교
+        <button class="tip-btn">?</button>
+        <div class="tip-box"><div class="tip-title">전월 대비</div>${prevRow?`${month>1?year+'년 '+MLABELS[month-2]:(year-1)+'년 12월'} 대비 증감입니다.`:'이전 데이터가 없습니다.'}<div class="tip-src">📂 출처: 내장 다연도 데이터</div></div>
+      </div>
+      ${prevRow ? (()=>{
+        const prevCost=estCost(prevRow,prevSeason);
+        function diffBadge(curr,prev,unit=''){
+          const d=curr-prev, pct=prev>0?((d/prev)*100).toFixed(1):0;
+          const cls=d>0?'diff-up':d<0?'diff-dn':'diff-eq';
+          const ic=d>0?'▲':d<0?'▼':'━';
+          return `<span class="cmp-curr" style="color:${d>0?'var(--red)':d<0?'var(--green)':'var(--text2)'};">${typeof curr==='number'&&curr%1!==0?curr.toFixed(1):curr}${unit}</span>
+                  <span class="cmp-diff ${cls}">${ic}${Math.abs(pct)}%</span>`;
+        }
+        return `
+        <div class="compare-row">
+          <div class="cmp-label">총 소비량 (kWh)</div>
+          <div class="cmp-vals"><span class="cmp-prev">${prevRow.kwh.toLocaleString()}</span><span class="cmp-arrow">→</span>${diffBadge(row.kwh,prevRow.kwh)}</div>
+        </div>
+        <div class="compare-row">
+          <div class="cmp-label">최대 피크 (kW)</div>
+          <div class="cmp-vals"><span class="cmp-prev">${prevRow.peakMax.toFixed(1)}</span><span class="cmp-arrow">→</span>${diffBadge(row.peakMax,prevRow.peakMax)}</div>
+        </div>
+        <div class="compare-row">
+          <div class="cmp-label">생산량 (개)</div>
+          <div class="cmp-vals"><span class="cmp-prev">${prevRow.prod.toLocaleString()}</span><span class="cmp-arrow">→</span>${diffBadge(row.prod,prevRow.prod)}</div>
+        </div>
+        <div class="compare-row">
+          <div class="cmp-label">추정 요금 (만원)</div>
+          <div class="cmp-vals"><span class="cmp-prev">${(prevCost.total/10000).toFixed(1)}</span><span class="cmp-arrow">→</span>${diffBadge((cost.total/10000).toFixed(1),(prevCost.total/10000).toFixed(1))}</div>
+        </div>
+        <div class="compare-row">
+          <div class="cmp-label">가동 인원 max</div>
+          <div class="cmp-vals"><span class="cmp-prev">${prevRow.manMax.toFixed(1)}명</span><span class="cmp-arrow">→</span>${diffBadge(row.manMax,prevRow.manMax,'명')}</div>
+        </div>`;
+      })() : `<div style="font-size:12px;color:var(--text3);padding:12px 0;">이전 월 데이터가 없습니다.</div>`}
+    </div>
+  </div>
+  `;
+
+  document.getElementById('resultArea').innerHTML=html;
+  bindTooltips(document.getElementById('resultArea'));
+  drawHourChart(hourData, row.peakMax, season, month);
+}
+
+// ── 기간 범위 조회 결과 ───────────────────────────────────────
+function renderRangeResult(yFrom,mFrom,yTo,mTo,rows,thr) {
+  const totalKwh = rows.reduce((s,r)=>s+r.kwh,0);
+  const maxPeak  = Math.max(...rows.map(r=>r.peakMax));
+  const avgPeak  = rows.reduce((s,r)=>s+r.peakAvg,0)/rows.length;
+  const totalProd= rows.reduce((s,r)=>s+r.prod,0);
+  const totalCost= rows.reduce((s,r)=>s+estCost(r,r.season).total,0);
+  const peakMonth= rows.find(r=>r.peakMax===maxPeak);
+  const grade    = gradeInfo(maxPeak,thr);
+  const spanLabel= `${yFrom}년 ${MLABELS[mFrom-1]} ~ ${yTo}년 ${MLABELS[mTo-1]}`;
+
+  const html=`
+  <div class="result-header">
+    <div>
+      <div class="rh-title">📅 ${spanLabel} 전력 실적 (${rows.length}개월)</div>
+      <div class="rh-sub">기간 범위 조회 · 임계값 ${thr}kW</div>
+    </div>
+    <div class="rh-right">
+      <span class="grade-badge ${grade.cls}" style="font-size:12px;padding:4px 12px;">최대 ${grade.label}</span>
+      <button class="dl-btn" onclick="dlRange()">⬇ CSV</button>
+    </div>
+  </div>
+
+  <div class="summary-grid">
+    <div class="sum-card accent">
+      <div class="sum-label">총 전력 소비량<button class="tip-btn">?</button><div class="tip-box"><div class="tip-title">기간 총 소비량</div>${spanLabel} 합산입니다.<div class="tip-src">📂 출처: power_estimate_full_YYYY.csv</div></div></div>
+      <div class="sum-val blue">${(totalKwh/1000).toFixed(1)}</div>
+      <div class="sum-unit">MWh (${totalKwh.toLocaleString()} kWh)</div>
+      <div class="sum-sub">월 평균 ${Math.round(totalKwh/rows.length).toLocaleString()} kWh</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-label">기간 내 최대 피크<button class="tip-btn">?</button><div class="tip-box"><div class="tip-title">기간 최대 피크</div>${peakMonth?peakMonth.year+'년 '+MLABELS[peakMonth.m-1]:''} 발생<div class="tip-src">📂 출처: 15분 컬럼 최대값</div></div></div>
+      <div class="sum-val ${grade.label==='초과'||grade.label==='위험'?'red':'yellow'}">${maxPeak.toFixed(1)}</div>
+      <div class="sum-unit">kW · ${peakMonth?peakMonth.year+'년 '+MLABELS[peakMonth.m-1]:''}</div>
+      <div class="sum-sub">평균 피크: ${avgPeak.toFixed(1)} kW</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-label">인원 max 평균<button class="tip-btn">?</button><div class="tip-box"><div class="tip-title">인원 max 평균</div>각 월 최대 투입 인원의 평균입니다.<div class="tip-src">📂 출처: 공장인원 컬럼</div></div></div>
+      <div class="sum-val teal">${(rows.reduce((s,r)=>s+r.manMax,0)/rows.length).toFixed(1)}</div>
+      <div class="sum-unit">명 (월별 max 평균)</div>
+      <div class="sum-sub">가동 시 평균 ${(rows.reduce((s,r)=>s+r.manAvg,0)/rows.length).toFixed(2)}명</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-label">총 생산량<button class="tip-btn">?</button><div class="tip-box"><div class="tip-title">기간 총 생산량</div>해당 기간 총 생산된 볼트·너트 수량입니다.<div class="tip-src">📂 출처: 생산량 컬럼</div></div></div>
+      <div class="sum-val green">${(totalProd/10000).toFixed(0)}</div>
+      <div class="sum-unit">만 개</div>
+      <div class="sum-sub">집약도: ${(totalKwh/totalProd).toFixed(4)} kWh/개</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-label">추정 전기요금 합계<button class="tip-btn">?</button><div class="tip-box"><div class="tip-title">기간 총 요금</div>월별 추정 전기요금 합산입니다.<div class="tip-src">📂 출처: 한전 요금 기준 추정</div></div></div>
+      <div class="sum-val orange">${(totalCost/10000).toFixed(0)}</div>
+      <div class="sum-unit">만원</div>
+      <div class="sum-sub">월 평균 ${(totalCost/rows.length/10000).toFixed(1)}만원</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📊 월별 전력 소비량 추이 (${spanLabel})
+      <button class="tip-btn">?</button><div class="tip-box"><div class="tip-title">기간 월별 추이</div>주황=여름, 초록=봄가을, 파랑=겨울 색상입니다.<div class="tip-src">📂 출처: power_estimate_full_YYYY.csv</div></div>
+    </div>
+    <div style="position:relative;height:220px;"><canvas id="chartRange"></canvas></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📋 월별 상세 내역
+      <button class="tip-btn">?</button><div class="tip-box"><div class="tip-title">월별 상세</div>조회 기간 내 각 월의 주요 지표를 정리한 표입니다.<div class="tip-src">📂 출처: power_estimate_full_YYYY.csv</div></div>
+    </div>
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead><tr style="background:var(--bg3);">
+          <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border2);">연월</th>
+          <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border2);">계절</th>
+          <th style="padding:8px 10px;text-align:right;border-bottom:2px solid var(--border2);">소비량(kWh)</th>
+          <th style="padding:8px 10px;text-align:right;border-bottom:2px solid var(--border2);">최대피크(kW)</th>
+          <th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--border2);">등급</th>
+          <th style="padding:8px 10px;text-align:right;border-bottom:2px solid var(--border2);">인원max</th>
+          <th style="padding:8px 10px;text-align:right;border-bottom:2px solid var(--border2);">생산량(개)</th>
+          <th style="padding:8px 10px;text-align:right;border-bottom:2px solid var(--border2);">추정요금(만원)</th>
+        </tr></thead>
+        <tbody>
+          ${rows.map(r=>{
+            const c=estCost(r,r.season);const g=gradeInfo(r.peakMax,thr);
+            const isPeak=r.peakMax>=thr;
+            return `<tr style="${isPeak?'background:var(--red-bg);':''}">
+              <td style="padding:7px 10px;text-align:center;border-bottom:1px solid var(--border);font-weight:500;">${r.year}년 ${MLABELS[r.m-1]}</td>
+              <td style="padding:7px 10px;text-align:center;border-bottom:1px solid var(--border);font-size:11px;">${r.season}</td>
+              <td style="padding:7px 10px;text-align:right;border-bottom:1px solid var(--border);font-family:'JetBrains Mono',monospace;font-size:11px;">${r.kwh.toLocaleString()}</td>
+              <td style="padding:7px 10px;text-align:right;border-bottom:1px solid var(--border);font-family:'JetBrains Mono',monospace;font-size:11px;color:${g.color};font-weight:700;">${r.peakMax.toFixed(1)}</td>
+              <td style="padding:7px 10px;text-align:center;border-bottom:1px solid var(--border);"><span class="grade-badge ${g.cls}">${g.label}</span></td>
+              <td style="padding:7px 10px;text-align:right;border-bottom:1px solid var(--border);font-family:'JetBrains Mono',monospace;font-size:11px;">0~${r.manMax.toFixed(1)}</td>
+              <td style="padding:7px 10px;text-align:right;border-bottom:1px solid var(--border);font-family:'JetBrains Mono',monospace;font-size:11px;">${r.prod.toLocaleString()}</td>
+              <td style="padding:7px 10px;text-align:right;border-bottom:1px solid var(--border);font-family:'JetBrains Mono',monospace;font-size:11px;">${(c.total/10000).toFixed(1)}</td>
+            </tr>`;
+          }).join('')}
+          <tr style="background:var(--green-bg);font-weight:700;border-top:2px solid rgba(5,150,105,.3);">
+            <td style="padding:7px 10px;text-align:center;color:var(--green);">합계/최대</td><td style="padding:7px 10px;text-align:center;">—</td>
+            <td style="padding:7px 10px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--green);">${totalKwh.toLocaleString()}</td>
+            <td style="padding:7px 10px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--green);">${maxPeak.toFixed(1)} (최대)</td>
+            <td style="padding:7px 10px;"></td>
+            <td style="padding:7px 10px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--green);">—</td>
+            <td style="padding:7px 10px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--green);">${totalProd.toLocaleString()}</td>
+            <td style="padding:7px 10px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--green);">${(totalCost/10000).toFixed(1)}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  `;
+
+  document.getElementById('resultArea').innerHTML=html;
+  bindTooltips(document.getElementById('resultArea'));
+  drawRangeChart(rows);
+}
+
+// ── 차트 ─────────────────────────────────────────────────────
+function drawHourChart(data, maxPeak, season, month){
+  const tou_colors=data.map((_,h)=>{
+    let b=0;
+    if(season==='여름'){if(h>=10&&h<=17)b=2;else if(h<=5||h>=22)b=0;else b=1;}
+    else if(season==='겨울'){if((h>=9&&h<=10)||(h>=17&&h<=19))b=2;else if(h<=5||h>=22)b=0;else b=1;}
+    else{if(h>=10&&h<=17)b=1;else if(h<=5||h>=22)b=0;else b=1;}
+    return b===2?'rgba(220,38,38,0.7)':b===1?'rgba(217,119,6,0.65)':'rgba(37,99,235,0.55)';
+  });
+  if(chartHour) chartHour.destroy();
+  chartHour=new Chart(document.getElementById('chartHour'),{
+    type:'bar',
+    data:{labels:Array.from({length:24},(_,h)=>`${h}시`),
+      datasets:[
+        {data,backgroundColor:tou_colors,borderRadius:3,borderSkipped:false},
+        {type:'line',data:Array(24).fill(maxPeak),borderColor:'#DC262680',borderWidth:1,borderDash:[4,3],pointRadius:0,fill:false}
+      ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.parsed.y.toFixed(1)} kW`}}},
+      scales:{x:{grid:{display:false},ticks:{font:{size:9}}},
+              y:{min:0,grid:{color:'rgba(0,0,0,0.04)'},ticks:{font:{size:10},callback:v=>v+'kW'}}}}
+  });
+}
+
+function drawRangeChart(rows){
+  const labels=rows.map(r=>`${r.year}.${String(r.m).padStart(2,'0')}`);
+  const kwhData=rows.map(r=>r.kwh);
+  const colors=rows.map(r=>r.season==='여름'?'rgba(234,88,12,0.75)':r.season==='겨울'?'rgba(37,99,235,0.65)':'rgba(5,150,105,0.70)');
+  const existing=Chart.getChart('chartRange');
+  if(existing) existing.destroy();
+  new Chart(document.getElementById('chartRange'),{
+    type:'bar',
+    data:{labels,datasets:[{data:kwhData,backgroundColor:colors,borderRadius:4,borderSkipped:false}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.parsed.y.toLocaleString()} kWh`}}},
+      scales:{x:{grid:{display:false},ticks:{font:{size:10},maxRotation:45}},
+              y:{grid:{color:'rgba(0,0,0,0.04)'},ticks:{font:{size:10},callback:v=>(v/1000).toFixed(0)+'k'}}}}
+  });
+}
+
+// ── CSV 다운로드 ──────────────────────────────────────────────
+function dlMonth(year,month){
+  const row=DB[year][month-1];const season=SEASONS[month];
+  const cost=estCost(row,season);
+  let csv='\uFEFF';
+  csv+=`${year}년 ${MLABELS[month-1]} 전력 실적 — 올라운더팀\n\n`;
+  csv+=`항목,값,단위\n`;
+  csv+=`총 전력 소비량,${row.kwh},kWh\n`;
+  csv+=`최대 피크,${row.peakMax},kW\n평균 피크,${row.peakAvg},kW\n`;
+  csv+=`공장 인원 min,0,명\n공장 인원 max,${row.manMax},명\n`;
+  csv+=`가동 시 평균 인원,${row.manAvg},명\n가동 시간,${row.workH},h\n`;
+  csv+=`총 생산량,${row.prod},개\n에너지집약도,${(row.kwh/row.prod).toFixed(4)},kWh/개\n`;
+  csv+=`추정 사용량요금,${cost.usage},원\n추정 기본요금,${cost.basic},원\n추정 합계,${cost.total},원\n`;
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  a.download=`전력조회_${year}년_${MLABELS[month-1]}_올라운더.csv`;a.click();
+}
+
+function dlRange(){
+  // 현재 표시된 결과 기반 다운로드는 렌더링 시 rows를 전역 변수로 저장 필요
+  alert('CSV 다운로드: 각 월별 단일 조회 후 다운로드하거나,\nStreamlit 연동 시 전체 범위 CSV 생성이 가능합니다.');
+}
+</script>
+</body>
+</html>

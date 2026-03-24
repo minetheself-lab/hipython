@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>탭5 — 운영 최적화 | 올라운더</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root {
+  --bg:#F4F6F9;--bg2:#FFFFFF;--bg3:#F8FAFC;
+  --border:rgba(0,0,0,0.08);--border2:rgba(0,0,0,0.15);
+  --text:#1E293B;--text2:#475569;--text3:#94A3B8;
+  --blue:#2563EB;--blue-dark:#1D4ED8;--blue-bg:rgba(37,99,235,0.08);
+  --green:#059669;--green-bg:rgba(5,150,105,0.08);
+  --yellow:#D97706;--yellow-bg:rgba(217,119,6,0.10);
+  --orange:#EA580C;--orange-bg:rgba(234,88,12,0.10);
+  --red:#DC2626;--red-bg:rgba(220,38,38,0.08);
+  --teal:#0D9488;--teal-bg:rgba(13,148,136,0.08);
+  --purple:#7C3AED;--purple-bg:rgba(124,58,237,0.08);
+  --sidebar-w:210px;--header-h:52px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.6;overflow-x:hidden;}
+.header{position:fixed;top:0;left:0;right:0;z-index:100;height:var(--header-h);background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:12px;}
+.logo{background:var(--blue-dark);color:#fff;font-weight:700;font-size:13px;padding:4px 9px;border-radius:6px;}
+.header-title{font-size:14px;font-weight:500;}
+.header-right{margin-left:auto;font-size:11px;color:var(--text3);}
+.sidebar{position:fixed;top:var(--header-h);left:0;bottom:0;width:var(--sidebar-w);background:var(--bg2);border-right:1px solid var(--border);overflow-y:auto;z-index:90;display:flex;flex-direction:column;}
+.nav-section{padding:14px 10px 4px;}
+.nav-label{font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;padding:6px 8px 4px;}
+.nav-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:6px;cursor:pointer;color:var(--text2);font-size:13px;transition:all .15s;}
+.nav-item:hover{background:var(--bg3);}
+.nav-item.active{background:var(--blue-bg);color:var(--blue);font-weight:500;}
+.nav-icon{font-size:15px;width:18px;text-align:center;}
+.sidebar-divider{border:none;border-top:1px solid var(--border);margin:8px 10px;}
+.form-section{padding:12px 12px 0;}
+.form-section-title{font-size:11px;font-weight:500;color:var(--text2);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:5px;}
+.form-group{margin-bottom:10px;}
+.form-label{font-size:11px;color:var(--text3);margin-bottom:3px;display:flex;align-items:center;gap:4px;}
+.form-select,.form-input{width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:6px 8px;font-size:12px;font-family:'Noto Sans KR',sans-serif;outline:none;transition:border .15s;}
+.form-select:focus,.form-input:focus{border-color:var(--blue);}
+.form-range{width:100%;accent-color:var(--blue);cursor:pointer;margin-top:3px;}
+.range-val{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--blue);float:right;}
+.run-btn{width:calc(100% - 24px);margin:10px 12px 4px;padding:10px;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:background .15s;}
+.run-btn:hover{background:#047857;}
+.run-btn:active{transform:scale(.98);}
+/* 툴팁 */
+.tip-btn{width:15px;height:15px;border-radius:50%;background:var(--text3);color:#fff;font-size:9px;font-weight:700;border:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s;}
+.tip-btn:hover{background:var(--green);}
+.tip-box{display:none !important;}
+#g-tip{display:none;position:fixed;z-index:99999;width:250px;background:#1E293B;color:#F1F5F9;font-size:11px;line-height:1.6;padding:10px 12px;border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,.35);pointer-events:none;}
+#g-tip::before{content:'';position:absolute;left:-5px;top:10px;border:5px solid transparent;border-right-color:#1E293B;border-left:none;}
+.tip-title{font-weight:700;color:#fff;margin-bottom:4px;font-size:11px;}
+.tip-src{color:#94A3B8;font-size:10px;margin-top:5px;border-top:1px solid rgba(255,255,255,.1);padding-top:4px;}
+/* 메인 */
+.main{margin-left:var(--sidebar-w);margin-top:var(--header-h);padding:22px;}
+.page-title{font-size:20px;font-weight:700;margin-bottom:3px;}
+.page-caption{font-size:12px;color:var(--text3);margin-bottom:18px;}
+/* 카드 */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:18px 20px;margin-bottom:16px;}
+.card-title{font-size:13px;font-weight:500;margin-bottom:14px;display:flex;align-items:center;gap:6px;}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:16px;}
+/* KPI */
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px;}
+.kpi-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;}
+.kpi-label{font-size:11px;color:var(--text3);margin-bottom:5px;display:flex;align-items:center;gap:5px;}
+.kpi-val{font-size:22px;font-weight:700;font-family:'JetBrains Mono',monospace;line-height:1.2;}
+.kpi-sub{font-size:11px;color:var(--text3);margin-top:3px;}
+.green{color:var(--green)}.blue{color:var(--blue)}.red{color:var(--red)}.yellow{color:var(--yellow)}.orange{color:var(--orange)}.teal{color:var(--teal)}.purple{color:var(--purple)}
+/* 스케줄 테이블 */
+.sched-wrap{overflow-x:auto;}
+table.sched{width:100%;border-collapse:collapse;font-size:11px;}
+table.sched th{background:var(--bg3);color:var(--text2);font-weight:500;padding:7px 8px;text-align:center;border-bottom:2px solid var(--border2);white-space:nowrap;}
+table.sched td{padding:6px 8px;text-align:center;border-bottom:1px solid var(--border);font-family:'JetBrains Mono',monospace;color:var(--text2);}
+table.sched tr:hover td{background:var(--bg3);}
+.sched-peak{color:var(--red);font-weight:700;}
+.sched-mid{color:var(--orange);}
+.sched-ok{color:var(--green);}
+/* OR-Tools 추천 스케줄 */
+.or-slot{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px;}
+.or-slot:last-child{border-bottom:none;}
+.or-time{font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--blue);min-width:80px;}
+.or-action{flex:1;color:var(--text2);}
+.or-badge{font-size:10px;padding:2px 7px;border-radius:4px;font-weight:700;}
+.ob-on{background:var(--green-bg);color:var(--green);}
+.ob-off{background:var(--red-bg);color:var(--red);}
+.ob-shift{background:var(--yellow-bg);color:var(--yellow);}
+.ob-dr{background:var(--purple-bg);color:var(--purple);}
+/* 절감 시나리오 */
+.scenario-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:12px;}
+.scenario-row:last-child{border-bottom:none;}
+.sc-name{font-weight:500;color:var(--text);}
+.sc-desc{font-size:11px;color:var(--text3);margin-top:1px;}
+.sc-saving{font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--green);}
+/* 피크 시간대 히트맵 */
+.heatmap-grid{display:grid;grid-template-columns:40px repeat(24,1fr);gap:2px;font-size:9px;}
+.hm-header{text-align:center;color:var(--text3);padding:2px 0;}
+.hm-label{color:var(--text2);font-weight:500;display:flex;align-items:center;justify-content:flex-end;padding-right:4px;font-size:10px;}
+.hm-cell{height:22px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:rgba(255,255,255,.9);}
+/* 설비 순서 추천 */
+.equip-card{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px;}
+.equip-rank{width:22px;height:22px;border-radius:50%;background:var(--blue);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.equip-name{font-size:12px;font-weight:500;flex:1;}
+.equip-kw{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3);}
+.equip-rec{font-size:10px;padding:2px 6px;border-radius:4px;}
+/* 로딩 */
+.loading-overlay{display:none;position:fixed;inset:0;background:rgba(248,250,252,.85);z-index:9000;align-items:center;justify-content:center;flex-direction:column;gap:12px;}
+.loading-overlay.show{display:flex;}
+.spinner{width:32px;height:32px;border:3px solid var(--border2);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+/* 초기 */
+.empty-state{text-align:center;padding:50px 20px;color:var(--text3);}
+.empty-icon{font-size:40px;margin-bottom:12px;}
+.empty-title{font-size:15px;font-weight:500;color:var(--text2);margin-bottom:6px;}
+.empty-desc{font-size:12px;line-height:1.8;}
+.note-bar{font-size:10px;color:var(--text3);padding:8px 0 0;border-top:1px solid var(--border);margin-top:8px;}
+</style>
+</head>
+<body>
+<div id="g-tip"></div>
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div><div style="font-size:13px;color:var(--text2);">최적화 계산 중…</div></div>
+
+<div class="header">
+  <div class="logo">EP</div>
+  <span class="header-title">공장 전력 피크 예측 · 자원 최적화</span>
+  <div class="header-right">올라운더팀 2026</div>
+</div>
+
+<div class="sidebar">
+  <div class="nav-section">
+    <div class="nav-label">메뉴</div>
+    <div class="nav-item"><span class="nav-icon">📊</span>피크 예측</div>
+    <div class="nav-item"><span class="nav-icon">⚡</span>전력 조회</div>
+    <div class="nav-item active"><span class="nav-icon">⚙️</span>운영 최적화</div>
+    <div class="nav-item"><span class="nav-icon">💰</span>DR 시뮬레이션</div>
+    <div class="nav-item"><span class="nav-icon">🌿</span>ESG 리포트</div>
+  </div>
+  <div class="sidebar-divider"></div>
+
+  <div class="form-section">
+    <div class="form-section-title">⚙️ 최적화 조건</div>
+
+    <div class="form-group">
+      <div class="form-label">분석 월
+        <button class="tip-btn">?</button>
+        <div class="tip-box"><div class="tip-title">분석 월</div>최적화 스케줄을 생성할 기준 월입니다. 계절에 따라 TOU 구간이 달라지며 피크 절감 전략도 달라집니다.<div class="tip-src">📂 출처: 한전 TOU 요금 체계</div></div>
+      </div>
+      <select class="form-select" id="selMonth">
+        <option value="1">1월 (겨울)</option><option value="2">2월 (겨울)</option>
+        <option value="3">3월 (봄)</option><option value="4">4월 (봄)</option>
+        <option value="5">5월 (봄)</option><option value="6">6월 (여름)</option>
+        <option value="7" selected>7월 (여름)</option><option value="8">8월 (여름)</option>
+        <option value="9">9월 (가을)</option><option value="10">10월 (가을)</option>
+        <option value="11">11월 (겨울)</option><option value="12">12월 (겨울)</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <div class="form-label">목표 피크 감축률 (%)
+        <button class="tip-btn">?</button>
+        <div class="tip-box"><div class="tip-title">목표 피크 감축률</div>현재 예측 피크 대비 얼마나 줄일지 목표를 설정합니다.<br>OR-Tools가 이 목표를 달성하는 설비 스케줄을 생성합니다.<div class="tip-src">📂 출처: Google OR-Tools 기반 최적화 로직</div></div>
+      </div>
+      <input type="range" class="form-range" id="rngReduce" min="5" max="30" value="15" oninput="document.getElementById('reduceVal').textContent=this.value+'%'">
+      <span class="range-val" id="reduceVal">15%</span>
+    </div>
+
+    <div class="form-group">
+      <div class="form-label">현재 예측 피크 (kW)
+        <button class="tip-btn">?</button>
+        <div class="tip-box"><div class="tip-title">현재 예측 피크</div>피크 예측 탭에서 조회한 값을 입력합니다.<br>이 값 기준으로 절감 가능 금액이 계산됩니다.<div class="tip-src">📂 출처: predictor1.py Set_C 예측값</div></div>
+      </div>
+      <input type="number" class="form-input" id="inpCurrentPeak" value="207" min="50" max="300">
+    </div>
+
+    <div class="form-group">
+      <div class="form-label">가동 인원 (명)
+        <button class="tip-btn">?</button>
+        <div class="tip-box"><div class="tip-title">공장 가동 인원</div>현재 근무 중인 공장 인원입니다. 인원에 따라 설비 가동 가능 수와 생산 계획이 달라집니다.<div class="tip-src">📂 출처: 공장 인원 현황</div></div>
+      </div>
+      <input type="number" class="form-input" id="inpWorkers" value="8" min="1" max="50">
+    </div>
+
+    <div class="form-group">
+      <div class="form-label">DR 발령 여부
+        <button class="tip-btn">?</button>
+        <div class="tip-box"><div class="tip-title">DR 발령 여부</div>DR 발령 중이면 추가 감축 인센티브를 반영하여 더 공격적인 스케줄을 생성합니다.<div class="tip-src">📂 출처: DR 시뮬레이션 탭 연동</div></div>
+      </div>
+      <select class="form-select" id="selDR">
+        <option value="none" selected>없음</option>
+        <option value="active">발령 중 (감축 인센티브 반영)</option>
+      </select>
+    </div>
+  </div>
+
+  <button class="run-btn" onclick="runOptimize()">⚙️ 최적화 스케줄 생성</button>
+
+  <div class="sidebar-divider"></div>
+  <div class="form-section">
+    <div class="form-section-title">ℹ 최적화 방식</div>
+    <div style="font-size:10px;color:var(--text3);line-height:1.8;padding-bottom:12px;">
+      <b style="color:var(--text2);">설비 가동 시간 분산</b><br>
+      피크 시간대 → 경부하 시간대<br><br>
+      <b style="color:var(--text2);">열처리로 스케줄링</b><br>
+      ON/OFF 최적 타이밍 제안<br><br>
+      <b style="color:var(--text2);">TOU 요금 최적화</b><br>
+      경부하 구간 중심 운영<br><br>
+      <span style="color:var(--yellow);">△ 실제 OR-Tools 연동 시<br>더 정밀한 결과 도출 가능</span>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="page-title">⚙️ 운영 최적화</div>
+  <div class="page-caption">설비 가동 스케줄 최적화 · 피크 절감 전략 · TOU 요금 최적화 · 절감 시나리오 비교</div>
+
+  <div id="resultArea">
+    <div class="empty-state">
+      <div class="empty-icon">⚙️</div>
+      <div class="empty-title">최적화 조건을 설정하고 스케줄 생성 버튼을 눌러주세요</div>
+      <div class="empty-desc">목표 감축률·현재 피크·인원을 설정하면<br>시간대별 최적 설비 가동 스케줄과<br>절감 가능 금액을 제안합니다.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── 툴팁 ─────────────────────────────────────────────────────
+const gTip=document.getElementById('g-tip');
+let tipTimer=null;
+function bindTooltips(root){
+  (root||document).querySelectorAll('.tip-btn').forEach(btn=>{
+    if(btn._bound)return;btn._bound=true;
+    const box=btn.nextElementSibling;if(!box)return;
+    btn.addEventListener('mouseenter',e=>{clearTimeout(tipTimer);gTip.innerHTML=box.innerHTML;gTip.style.display='block';pos(e);});
+    btn.addEventListener('mousemove',pos);
+    btn.addEventListener('mouseleave',()=>{tipTimer=setTimeout(()=>{gTip.style.display='none';},100);});
+  });
+}
+function pos(e){const pad=12,tw=250,th=gTip.offsetHeight||100;let x=e.clientX+pad+6,y=e.clientY-10;if(x+tw>window.innerWidth-pad)x=e.clientX-tw-pad;if(y+th>window.innerHeight-pad)y=window.innerHeight-th-pad;if(y<pad)y=pad;gTip.style.left=x+'px';gTip.style.top=y+'px';}
+bindTooltips();
+
+// ── TOU 계산 ─────────────────────────────────────────────────
+function getTOU(m,h){
+  if(m>=6&&m<=8){if(h>=10&&h<=17)return{b:2,p:155.0,l:'최대'};if(h<=5||h>=22)return{b:0,p:95.7,l:'경부하'};return{b:1,p:121.5,l:'중간'};}
+  if(m>=11||m<=2){if((h>=9&&h<=10)||(h>=17&&h<=19))return{b:2,p:155.0,l:'최대'};if(h<=5||h>=22)return{b:0,p:95.7,l:'경부하'};return{b:1,p:121.5,l:'중간'};}
+  if(h>=10&&h<=17)return{b:1,p:121.5,l:'중간'};if(h<=5||h>=22)return{b:0,p:95.7,l:'경부하'};return{b:1,p:121.5,l:'중간'};
+}
+
+// ── 설비 목록 ─────────────────────────────────────────────────
+const EQUIPMENT=[
+  {name:'열처리로 (Furnace)', kw:43.5, type:'base', priority:1},
+  {name:'CNC 선반 A', kw:22.0, type:'prod', priority:2},
+  {name:'CNC 선반 B', kw:22.0, type:'prod', priority:3},
+  {name:'볼트 성형기', kw:35.0, type:'prod', priority:4},
+  {name:'너트 성형기', kw:28.0, type:'prod', priority:5},
+  {name:'압축공기 컴프레서', kw:18.5, type:'util', priority:6},
+  {name:'냉각 시스템', kw:15.0, type:'util', priority:7},
+  {name:'조명·공조', kw:12.0, type:'base', priority:8},
+];
+
+let chartBefore=null, chartAfter=null;
+
+function runOptimize(){
+  const month  = parseInt(document.getElementById('selMonth').value);
+  const reduce = parseInt(document.getElementById('rngReduce').value);
+  const curPeak= parseFloat(document.getElementById('inpCurrentPeak').value)||207;
+  const workers= parseInt(document.getElementById('inpWorkers').value)||8;
+  const isDR   = document.getElementById('selDR').value==='active';
+
+  document.getElementById('loadingOverlay').classList.add('show');
+  setTimeout(()=>{
+    renderResult(month, reduce, curPeak, workers, isDR);
+    document.getElementById('loadingOverlay').classList.remove('show');
+  }, 800);
+}
+
+function renderResult(month, reduce, curPeak, workers, isDR){
+  const targetPeak = curPeak * (1 - reduce/100);
+  const saving     = curPeak - targetPeak;
+  const annualSave = Math.round(saving * 8320 * 12);
+  const drBonus    = isDR ? Math.round(saving * 300 * 2) : 0; // DR 정산금 추정
+  const SEASON     = month>=6&&month<=8?'여름':month>=11||month<=2?'겨울':'봄가을';
+
+  // 24시간 시뮬 (최적화 전/후)
+  const before=[],after=[];
+  for(let h=0;h<24;h++){
+    const t=getTOU(month,h);
+    // 전: 생산 시간대 피크 집중
+    let bPeak=curPeak*(h>=8&&h<=18?0.85+Math.random()*0.2:0.3+Math.random()*0.15);
+    // 후: 최대부하 시간대 분산
+    let aPeak;
+    if(t.b===2) aPeak=bPeak*(1-reduce/100*1.2); // 최대부하 → 강하게 절감
+    else if(t.b===0) aPeak=bPeak*(1+reduce/200); // 경부하 → 약간 증가
+    else aPeak=bPeak*(1-reduce/100*0.5);
+    aPeak=Math.max(aPeak,40); // 기저전력 최소값
+    before.push(Math.round(bPeak*10)/10);
+    after.push(Math.round(aPeak*10)/10);
+  }
+
+  // OR-Tools 스케줄 (규칙 기반 시뮬)
+  const schedule=[];
+  for(let h=0;h<24;h++){
+    const t=getTOU(month,h);
+    if(t.b===2&&h>=9&&h<=18){
+      schedule.push({h,action:'🔴 생산 부하 분산 — 집중 작업 지양',badge:'ob-shift',label:'분산 권고'});
+    } else if(t.b===0&&(h<=5||h>=22)){
+      schedule.push({h,action:'🟢 경부하 구간 — 고전력 설비 가동 최적',badge:'ob-on',label:'가동 권장'});
+    } else if(isDR&&t.b>=1&&h>=13&&h<=17){
+      schedule.push({h,action:'🟣 DR 발령 구간 — 최대 감축 실행',badge:'ob-dr',label:'DR 감축'});
+    }
+  }
+
+  const html=`
+  <!-- KPI 4개 -->
+  <div class="kpi-row">
+    <div class="kpi-card">
+      <div class="kpi-label">목표 감축 피크
+        <button class="tip-btn">?</button>
+        <div class="tip-box"><div class="tip-title">목표 감축 피크</div>현재 피크 ${curPeak}kW에서 ${reduce}% 감축한 목표값입니다.<div class="tip-src">📂 출처: 담당자 설정 감축률</div></div>
+      </div>
+      <div class="kpi-val green">${targetPeak.toFixed(1)}</div>
+      <div class="kpi-sub">kW (현재 ${curPeak}kW → ${reduce}% 감축)</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">연간 기본요금 절감 기대액
+        <button class="tip-btn">?</button>
+        <div class="tip-box"><div class="tip-title">연간 기본요금 절감</div>${saving.toFixed(1)}kW × 8,320원 × 12개월<div class="tip-src">📂 출처: 한전 기본요금 단가</div></div>
+      </div>
+      <div class="kpi-val teal">${(annualSave/10000).toFixed(0)}</div>
+      <div class="kpi-sub">만원 / 년</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">경부하 이전 가능 시간
+        <button class="tip-btn">?</button>
+        <div class="tip-box"><div class="tip-title">경부하 이전 가능 시간</div>최대부하 → 경부하(22시~08시) 시간대로 작업을 이전하면 TOU 요금도 절감됩니다.<div class="tip-src">📂 출처: 한전 TOU 요금 체계</div></div>
+      </div>
+      <div class="kpi-val blue">${month>=6&&month<=8?8:month>=11||month<=2?6:8}</div>
+      <div class="kpi-sub">시간 (22~06시 경부하 구간)</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">${isDR?'DR 정산금 추정':'TOU 절감 추정'}
+        <button class="tip-btn">?</button>
+        <div class="tip-box"><div class="tip-title">${isDR?'DR 정산금 추정':'TOU 요금 절감'}</div>
+          ${isDR?`감축량 ${saving.toFixed(1)}kW × MGP 300원 × 2시간 기준 추정`:'최대부하→경부하 이전 시 요금 단가 절감 효과'}
+          <div class="tip-src">📂 출처: ${isDR?'DR 시뮬레이션 탭':'한전 TOU 단가 차이'}</div></div>
+      </div>
+      <div class="kpi-val ${isDR?'purple':'yellow'}">${isDR?(drBonus/10000).toFixed(0):Math.round(saving*50/10000).toFixed(0)}</div>
+      <div class="kpi-sub">만원 ${isDR?'(DR 1회 기준)':'/ 월 추정'}</div>
+    </div>
+  </div>
+
+  <!-- 최적화 전후 차트 -->
+  <div class="two-col">
+    <div class="card">
+      <div class="card-title">📊 최적화 전 — 24시간 피크 패턴
+        <button class="tip-btn">?</button>
+        <div class="tip-box"><div class="tip-title">최적화 전 피크</div>현재 운영 방식 기준 시간대별 예측 피크입니다. 주간 생산 시간대에 피크가 집중됩니다.<div class="tip-src">📂 출처: predictor1.py 시뮬레이션</div></div>
+      </div>
+      <div style="position:relative;height:220px;"><canvas id="chartBefore"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">📊 최적화 후 — 목표 스케줄 패턴
+        <button class="tip-btn">?</button>
+        <div class="tip-box"><div class="tip-title">최적화 후 피크</div>OR-Tools 스케줄 적용 시 예상 피크입니다. 최대부하 구간의 피크가 경부하 구간으로 분산됩니다.<div class="tip-src">📂 출처: Google OR-Tools 기반 시뮬레이션</div></div>
+      </div>
+      <div style="position:relative;height:220px;"><canvas id="chartAfter"></canvas></div>
+    </div>
+  </div>
+
+  <!-- OR-Tools 추천 스케줄 + 설비 순서 -->
+  <div class="two-col">
+    <div class="card">
+      <div class="card-title">🤖 OR-Tools 추천 스케줄 (주요 시간대)
+        <button class="tip-btn">?</button>
+        <div class="tip-box"><div class="tip-title">OR-Tools 추천 스케줄</div>Google OR-Tools 최적화 엔진 기반 시간대별 운영 권고입니다. 실제 배포 시 제약조건(생산 목표량, 설비 사양)을 추가 반영합니다.<div class="tip-src">📂 출처: Google OR-Tools CP-SAT Solver (시뮬)</div></div>
+        <span style="margin-left:auto;font-size:10px;color:var(--text3);">${month}월 ${SEASON} 기준</span>
+      </div>
+      <div>
+        ${schedule.length>0 ? schedule.map(s=>`
+          <div class="or-slot">
+            <div class="or-time">${String(s.h).padStart(2,'0')}:00</div>
+            <div class="or-action">${s.action}</div>
+            <span class="or-badge ${s.badge}">${s.label}</span>
+          </div>`).join('') :
+          `<div style="font-size:12px;color:var(--text3);padding:12px 0;">이 월·조건에서는 현재 스케줄이 최적에 가깝습니다.</div>`
+        }
+      </div>
+      <div class="note-bar">※ 실제 OR-Tools 연동 시 생산 제약조건 반영 가능</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🔧 설비 가동 우선순위 추천
+        <button class="tip-btn">?</button>
+        <div class="tip-box"><div class="tip-title">설비 가동 순서 추천</div>피크 절감을 위한 설비별 가동 우선순위입니다.<br>피크 시간대에는 우선순위가 낮은 설비부터 지연 가동을 권장합니다.<div class="tip-src">📂 출처: 설비별 소비전력 + TOU 분석</div></div>
+      </div>
+      ${EQUIPMENT.map((eq,i)=>{
+        const isPeak = eq.type==='prod';
+        const rec = i<3 ? '필수 가동' : isPeak&&i>=5 ? '지연 권장' : '유지';
+        const recCls= rec==='필수 가동'?'ob-on':rec==='지연 권장'?'ob-shift':'';
+        return `<div class="equip-card">
+          <div class="equip-rank" style="background:${i<3?'var(--blue)':i<5?'var(--yellow)':'var(--text3)'};">${i+1}</div>
+          <div class="equip-name">${eq.name}</div>
+          <div class="equip-kw">${eq.kw}kW</div>
+          <span class="equip-rec or-badge ${recCls}">${rec}</span>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>
+
+  <!-- 피크 시간대 히트맵 -->
+  <div class="card">
+    <div class="card-title">🌡 시간대별 TOU 구간 히트맵 (${month}월 기준)
+      <button class="tip-btn">?</button>
+      <div class="tip-box"><div class="tip-title">TOU 히트맵</div>시간대별 TOU 요금 구간을 색상으로 표시합니다.<br>빨강=최대부하(155원), 노랑=중간(121.5원), 초록=경부하(95.7원)<div class="tip-src">📂 출처: 한전 TOU 요금 체계</div></div>
+    </div>
+    <div class="heatmap-grid">
+      <div class="hm-label"></div>
+      ${Array.from({length:24},(_,h)=>`<div class="hm-header">${h}</div>`).join('')}
+      <div class="hm-label" style="font-size:9px;">TOU</div>
+      ${Array.from({length:24},(_,h)=>{
+        const t=getTOU(month,h);
+        const bg=t.b===2?'rgba(220,38,38,0.8)':t.b===1?'rgba(217,119,6,0.7)':'rgba(5,150,105,0.7)';
+        return `<div class="hm-cell" style="background:${bg};">${t.p}</div>`;
+      }).join('')}
+      <div class="hm-label" style="font-size:9px;">전/후</div>
+      ${Array.from({length:24},(_,h)=>{
+        const diff=before[h]-after[h];
+        const intensity=Math.min(Math.abs(diff)/curPeak,1);
+        const bg=diff>5?`rgba(5,150,105,${0.3+intensity*0.5})`:`rgba(203,213,225,0.4)`;
+        return `<div class="hm-cell" style="background:${bg};font-size:7px;">${diff>0?'-'+diff.toFixed(0):''}</div>`;
+      }).join('')}
+    </div>
+    <div class="note-bar" style="margin-top:6px;">TOU 행: 빨강=최대부하(155원), 노랑=중간(121.5원), 초록=경부하(95.7원) | 전/후 행: 초록=절감 구간</div>
+  </div>
+
+  <!-- 절감 시나리오 3단계 -->
+  <div class="card">
+    <div class="card-title">💡 절감 시나리오 비교 (3단계)
+      <button class="tip-btn">?</button>
+      <div class="tip-box"><div class="tip-title">절감 시나리오</div>피크 감축 목표에 따른 연간 기본요금 절감 기대액 비교입니다.<div class="tip-src">📂 출처: 한전 기본요금 × 감축률</div></div>
+    </div>
+    ${[
+      {label:'현상 유지',reduce:0,    desc:'현재 운영 방식 그대로',color:'var(--text3)'},
+      {label:'보수적 절감 (10%)',reduce:10, desc:'설비 시간대 일부 조정',color:'var(--yellow)'},
+      {label:'목표 절감 ('+reduce+'%)',reduce:reduce, desc:'OR-Tools 스케줄 적용',color:'var(--green)'},
+      {label:'공격적 절감 (25%)',reduce:25, desc:'DR 참여 + AI 스케줄링 병행',color:'var(--teal)'},
+    ].map(sc=>{
+      const save=Math.round(curPeak*sc.reduce/100*8320*12);
+      const newPeak=(curPeak*(1-sc.reduce/100)).toFixed(1);
+      return `<div class="scenario-row">
+        <div><div class="sc-name" style="color:${sc.color};">${sc.label}</div>
+          <div class="sc-desc">목표 피크: ${newPeak}kW · ${sc.desc}</div></div>
+        <div class="sc-saving" style="color:${sc.color};">${sc.reduce===0?'—':(save/10000).toFixed(0)+'만원/년'}</div>
+      </div>`;
+    }).join('')}
+    <div class="note-bar">※ 기본요금 단가 8,320원/kW/월 기준 추정치 | 실제 절감액은 운영 결과에 따라 다를 수 있습니다</div>
+  </div>
+  `;
+
+  document.getElementById('resultArea').innerHTML=html;
+  bindTooltips(document.getElementById('resultArea'));
+  drawCharts(before, after, curPeak, targetPeak, month);
+}
+
+function drawCharts(before, after, curPeak, targetPeak, month){
+  const labels=Array.from({length:24},(_,h)=>`${h}시`);
+  const touColors=Array.from({length:24},(_,h)=>{
+    const t=getTOU(month,h);
+    return t.b===2?'rgba(220,38,38,0.75)':t.b===1?'rgba(217,119,6,0.65)':'rgba(37,99,235,0.55)';
+  });
+  const opts=(title,thrVal)=>({
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:ctx=>` ${ctx.parsed.y.toFixed(1)} kW`}}},
+    scales:{
+      x:{grid:{display:false},ticks:{font:{size:9}}},
+      y:{min:0,max:Math.max(curPeak*1.1,240),grid:{color:'rgba(0,0,0,0.04)'},
+         ticks:{font:{size:10},callback:v=>v+'kW'}}}
+  });
+
+  if(chartBefore) chartBefore.destroy();
+  chartBefore=new Chart(document.getElementById('chartBefore'),{
+    type:'bar',
+    data:{labels,datasets:[
+      {data:before,backgroundColor:touColors,borderRadius:3,borderSkipped:false},
+      {type:'line',data:Array(24).fill(curPeak),borderColor:'#DC2626',borderWidth:1.5,borderDash:[4,3],pointRadius:0,fill:false}
+    ]},
+    options:opts('최적화 전', curPeak)
+  });
+
+  if(chartAfter) chartAfter.destroy();
+  const afterColors=after.map((v,h)=>{
+    const t=getTOU(month,h);
+    return t.b===2?'rgba(5,150,105,0.75)':t.b===1?'rgba(5,150,105,0.55)':'rgba(37,99,235,0.55)';
+  });
+  chartAfter=new Chart(document.getElementById('chartAfter'),{
+    type:'bar',
+    data:{labels,datasets:[
+      {data:after,backgroundColor:afterColors,borderRadius:3,borderSkipped:false},
+      {type:'line',data:Array(24).fill(targetPeak),borderColor:'#059669',borderWidth:1.5,borderDash:[4,3],pointRadius:0,fill:false},
+      {type:'line',data:Array(24).fill(curPeak),borderColor:'#DC262640',borderWidth:1,borderDash:[2,4],pointRadius:0,fill:false}
+    ]},
+    options:opts('최적화 후', targetPeak)
+  });
+}
+</script>
+</body>
+</html>

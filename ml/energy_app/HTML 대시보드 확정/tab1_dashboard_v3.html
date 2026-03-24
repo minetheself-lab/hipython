@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>탭1 — 피크 예측 대시보드 | 올라운더</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root {
+  --bg:#F4F6F9; --bg2:#FFFFFF; --bg3:#F8FAFC;
+  --border:rgba(0,0,0,0.08); --border2:rgba(0,0,0,0.15);
+  --text:#1E293B; --text2:#475569; --text3:#94A3B8;
+  --blue:#2563EB; --blue-dark:#1D4ED8; --blue-bg:rgba(37,99,235,0.08);
+  --green:#059669; --green-bg:rgba(5,150,105,0.08);
+  --yellow:#D97706; --yellow-bg:rgba(217,119,6,0.10);
+  --orange:#EA580C; --orange-bg:rgba(234,88,12,0.10);
+  --red:#DC2626; --red-bg:rgba(220,38,38,0.08);
+  --sidebar-w:200px; --header-h:52px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.6;overflow-x:hidden;}
+
+/* ── 헤더 ── */
+.header{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  height:var(--header-h);background:var(--bg2);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 20px;gap:12px;
+}
+.logo{background:var(--blue-dark);color:#fff;font-weight:700;font-size:13px;padding:4px 9px;border-radius:6px;}
+.header-title{font-size:14px;font-weight:500;}
+.header-right{margin-left:auto;font-size:11px;color:var(--text3);}
+
+/* ── 사이드바 ── */
+.sidebar{
+  position:fixed;top:var(--header-h);left:0;bottom:0;
+  width:var(--sidebar-w);background:var(--bg2);
+  border-right:1px solid var(--border);
+  overflow-y:auto;z-index:90;display:flex;flex-direction:column;
+}
+.nav-section{padding:14px 10px 4px;}
+.nav-label{font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;padding:6px 8px 4px;}
+.nav-item{
+  display:flex;align-items:center;gap:8px;
+  padding:7px 10px;border-radius:6px;cursor:pointer;
+  color:var(--text2);font-size:13px;transition:all .15s;
+}
+.nav-item:hover{background:var(--bg3);color:var(--text);}
+.nav-item.active{background:var(--blue-bg);color:var(--blue);font-weight:500;}
+.nav-icon{font-size:15px;width:18px;text-align:center;}
+.sidebar-divider{border:none;border-top:1px solid var(--border);margin:8px 10px;}
+
+/* 사이드바 입력 폼 */
+.form-section{padding:12px 12px 0;}
+.form-section-title{font-size:11px;font-weight:500;color:var(--text2);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);}
+.form-group{margin-bottom:10px;}
+.form-label{font-size:11px;color:var(--text3);margin-bottom:3px;display:block;}
+.form-select,.form-input{
+  width:100%;background:var(--bg3);border:1px solid var(--border2);
+  color:var(--text);border-radius:6px;padding:6px 8px;font-size:12px;
+  font-family:'Noto Sans KR',sans-serif;outline:none;transition:border .15s;
+}
+.form-select:focus,.form-input:focus{border-color:var(--blue);}
+.form-range{width:100%;accent-color:var(--blue);cursor:pointer;margin-top:3px;}
+.range-val{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--blue);float:right;}
+.radio-group{display:flex;gap:5px;}
+.radio-btn{
+  flex:1;text-align:center;padding:5px 4px;border-radius:5px;
+  border:1px solid var(--border2);cursor:pointer;font-size:11px;
+  transition:all .15s;color:var(--text2);
+}
+.radio-btn.active{background:var(--blue-bg);border-color:var(--blue);color:var(--blue);}
+
+.predict-btn{
+  width:calc(100% - 24px);margin:12px;
+  padding:10px;background:var(--blue);color:#fff;
+  border:none;border-radius:8px;font-size:13px;font-weight:700;
+  cursor:pointer;transition:background .15s;font-family:'Noto Sans KR',sans-serif;
+}
+.predict-btn:hover{background:var(--blue-dark);}
+.predict-btn:active{transform:scale(.98);}
+
+/* ── 메인 ── */
+.main{margin-left:var(--sidebar-w);margin-top:var(--header-h);padding:22px;min-height:calc(100vh - var(--header-h));}
+.page-title{font-size:20px;font-weight:700;margin-bottom:3px;}
+.page-caption{font-size:12px;color:var(--text3);margin-bottom:18px;}
+
+/* 경보 배너 */
+.alert-banner{padding:11px 16px;border-radius:8px;margin-bottom:16px;font-size:13px;display:flex;align-items:center;gap:10px;border:1px solid;}
+.alert-danger {background:var(--red-bg);   border-color:rgba(220,38,38,.3); color:var(--red);}
+.alert-warning{background:var(--yellow-bg);border-color:rgba(217,119,6,.3); color:var(--yellow);}
+.alert-info   {background:var(--blue-bg);  border-color:rgba(37,99,235,.3); color:var(--blue);}
+.alert-success{background:var(--green-bg); border-color:rgba(5,150,105,.3); color:var(--green);}
+
+/* ── 툴팁 (fixed 방식 — 사이드바 overflow 무관) ── */
+.tip-wrap{display:inline-flex;align-items:center;}
+.tip-btn{width:15px;height:15px;border-radius:50%;background:var(--text3);color:#fff;font-size:9px;font-weight:700;border:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;line-height:1;flex-shrink:0;transition:background .15s;}
+.tip-btn:hover{background:var(--blue);}
+/* 전역 플로팅 툴팁 — DOM 최상위에 하나만 존재 */
+#g-tip{
+  display:none;position:fixed;z-index:99999;
+  width:240px;background:#1E293B;color:#F1F5F9;
+  font-size:11px;line-height:1.6;padding:10px 12px;
+  border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,.35);
+  pointer-events:none;
+}
+#g-tip::before{content:'';position:absolute;left:-5px;top:10px;border:5px solid transparent;border-right-color:#1E293B;border-left:none;}
+.tip-title{font-weight:700;color:#fff;margin-bottom:4px;font-size:11px;}
+.tip-src{color:#94A3B8;font-size:10px;margin-top:5px;border-top:1px solid rgba(255,255,255,.1);padding-top:4px;}
+
+/* 2단 레이아웃 */
+.top-grid{display:grid;grid-template-columns:3fr 1fr;gap:16px;margin-bottom:16px;}
+
+/* 날씨 카드 */
+.weather-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px 18px;}
+.weather-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+.weather-title{font-size:13px;font-weight:500;}
+.weather-source{font-size:11px;color:var(--text3);}
+.refresh-btn{font-size:11px;color:var(--blue);background:var(--blue-bg);border:none;padding:3px 10px;border-radius:5px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;}
+.weather-items{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.weather-item{text-align:center;}
+.w-icon{font-size:22px;margin-bottom:4px;}
+.w-val{font-size:18px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--blue);}
+.w-label{font-size:10px;color:var(--text3);margin-top:2px;}
+.weather-note{font-size:10px;color:var(--text3);margin-top:10px;padding-top:8px;border-top:1px solid var(--border);}
+
+/* 경보 임계값 설정 */
+.threshold-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px 18px;}
+.threshold-title{font-size:13px;font-weight:500;margin-bottom:12px;}
+.th-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.th-item label{font-size:10px;margin-bottom:3px;display:block;}
+.th-item input{width:100%;padding:5px 8px;border:1px solid var(--border2);border-radius:5px;font-size:13px;font-family:'JetBrains Mono',monospace;text-align:center;outline:none;}
+.th-item input:focus{border-color:var(--blue);}
+.th-caution input{border-color:var(--blue)!important;color:var(--blue);}
+.th-warning input{border-color:var(--yellow)!important;color:var(--yellow);}
+.th-danger  input{border-color:var(--orange)!important;color:var(--orange);}
+.th-exceed  input{border-color:var(--red)!important;color:var(--red);}
+.th-note{font-size:10px;color:var(--text3);margin-top:8px;}
+
+/* KPI 카드 */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px;}
+.kpi-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px 18px;transition:border .2s;}
+.kpi-card:hover{border-color:var(--border2);}
+.kpi-label{font-size:11px;color:var(--text3);margin-bottom:6px;}
+.kpi-val{font-size:26px;font-weight:700;font-family:'JetBrains Mono',monospace;line-height:1.2;}
+.kpi-val.green {color:var(--green);}
+.kpi-val.blue  {color:var(--blue);}
+.kpi-val.yellow{color:var(--yellow);}
+.kpi-val.orange{color:var(--orange);}
+.kpi-val.red   {color:var(--red);}
+.kpi-delta{font-size:11px;color:var(--text3);margin-top:4px;}
+.kpi-badge{display:inline-block;font-size:10px;padding:2px 7px;border-radius:4px;margin-top:4px;font-weight:500;}
+
+/* 차트 카드 */
+.chart-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:18px 20px;margin-bottom:16px;}
+.chart-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+.chart-title{font-size:13px;font-weight:500;}
+.chart-legend{display:flex;gap:14px;font-size:11px;color:var(--text3);}
+.legend-dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:4px;vertical-align:middle;}
+.chart-wrap{position:relative;height:220px;}
+
+/* 로딩 오버레이 */
+.loading{display:none;position:absolute;inset:0;background:rgba(255,255,255,.8);border-radius:10px;align-items:center;justify-content:center;flex-direction:column;gap:8px;font-size:13px;color:var(--text2);}
+.loading.show{display:flex;}
+.spinner{width:28px;height:28px;border:3px solid var(--border2);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* 초기 안내 */
+.empty-state{text-align:center;padding:40px 20px;color:var(--text3);}
+.empty-icon{font-size:36px;margin-bottom:10px;}
+.empty-text{font-size:13px;}
+</style>
+</head>
+<body>
+<!-- 전역 플로팅 툴팁 -->
+<div id="g-tip"></div>
+
+<!-- 헤더 -->
+<div class="header">
+  <div class="logo">EP</div>
+  <span class="header-title">공장 전력 피크 예측 · 자원 최적화</span>
+  <div class="header-right">올라운더팀 2026</div>
+</div>
+
+<!-- 사이드바 -->
+<div class="sidebar">
+  <div class="nav-section">
+    <div class="nav-label">메뉴</div>
+    <div class="nav-item active"><span class="nav-icon">🏠</span>홈</div>
+    <div class="nav-item active" style="background:var(--blue-bg);color:var(--blue);font-weight:500;"><span class="nav-icon">📊</span>대시보드</div>
+    <div class="nav-item"><span class="nav-icon">⚡</span>전력 조회</div>
+    <div class="nav-item"><span class="nav-icon">⚙️</span>운영 최적화</div>
+    <div class="nav-item"><span class="nav-icon">💰</span>DR 시뮬레이션</div>
+    <div class="nav-item"><span class="nav-icon">🌿</span>ESG 리포트</div>
+  </div>
+
+  <div class="sidebar-divider"></div>
+
+  <!-- 운영 조건 입력 -->
+  <div class="form-section">
+    <div class="form-section-title">운영 조건 입력</div>
+
+    <div class="form-group">
+      <label class="form-label">월
+        <span class="tip-wrap"><button class="tip-btn">?</button>
+          <div class="tip-box" style="display:none"><div class="tip-title">월 선택</div>선택한 월에 따라 계절 전기요금(여름 191.6원/겨울 109.8원/봄가을 167.2원)과 SMP 단가가 자동 결정됩니다. 일자보다 월·계절이 전력 요금에 더 큰 영향을 줍니다.<div class="tip-src">📂 출처: KEPCO 산업용 전기요금 체계</div></div>
+        </span>
+      </label>
+      <select class="form-select" id="sel-month">
+        <option value="1">1월</option><option value="2">2월</option>
+        <option value="3">3월</option><option value="4">4월</option>
+        <option value="5">5월</option><option value="6">6월</option>
+        <option value="7" selected>7월</option><option value="8">8월</option>
+        <option value="9">9월</option><option value="10">10월</option>
+        <option value="11">11월</option><option value="12">12월</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">요일
+        <span class="tip-wrap"><button class="tip-btn">?</button>
+          <div class="tip-box" style="display:none"><div class="tip-title">요일 선택</div>주말(토·일) 선택 시 TOU 요금이 경부하(95.7원/kWh)로 자동 변경됩니다. 공휴일 여부도 내부에서 자동 반영됩니다. 일자(1~31)는 예측 정확도에 거의 영향이 없어 제외했습니다.<div class="tip-src">📂 출처: DB Calendar 테이블, KEPCO TOU 규정</div></div>
+        </span>
+      </label>
+      <select class="form-select" id="sel-weekday">
+        <option value="1">월요일</option><option value="2">화요일</option>
+        <option value="3">수요일</option><option value="4">목요일</option>
+        <option value="5" selected>금요일</option>
+        <option value="6">토요일</option><option value="7">일요일</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">시간 <span class="range-val" id="lbl-hour">10시</span>
+        <span class="tip-wrap"><button class="tip-btn">?</button>
+          <div class="tip-box" style="display:none"><div class="tip-title">예측 시간 선택</div>9~18시 = 주간(피크 높음), 22~06시 = 경부하(TOU 최저). 시간대별로 TOU 요금 구간과 인건비 할증이 자동 변경됩니다. 피처 중요도 3위 변수입니다.<div class="tip-src">📂 출처: KEPCO TOU 시간대 규정, 학습 데이터 feature importance</div></div>
+        </span>
+      </label>
+      <input type="range" class="form-range" id="rng-hour" min="0" max="23" value="10"
+             oninput="document.getElementById('lbl-hour').textContent=this.value+'시'">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">생산량 <span class="range-val" id="lbl-output">500개</span>
+        <span class="tip-wrap"><button class="tip-btn">?</button>
+          <div class="tip-box" style="display:none"><div class="tip-title">시간당 생산량 (개)</div>공장에서 해당 시간에 생산하는 볼트·너트 수량입니다. 피처 중요도 2위 변수로, 생산량이 많을수록 피크가 높아집니다. 최대 9,830개/시간.<div class="tip-src">📂 출처: KAMP 원본 데이터, okm_enriched_final.csv</div></div>
+        </span>
+      </label>
+      <input type="range" class="form-range" id="rng-output" min="0" max="9830" step="10" value="500"
+             oninput="document.getElementById('lbl-output').textContent=Number(this.value).toLocaleString()+'개'">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">공장 인원 <span class="range-val" id="lbl-workers">10명</span>
+        <span class="tip-wrap"><button class="tip-btn">?</button>
+          <div class="tip-box" style="display:none"><div class="tip-title">공장 근무 인원 (명)</div>현재 공장에서 근무 중인 인원입니다. 인원이 많을수록 설비 가동률이 높아져 피크에 영향을 줍니다. 내부에서 log1p 변환 후 모델에 입력됩니다.<div class="tip-src">📂 출처: KAMP 원본 데이터 공장인원 컬럼</div></div>
+        </span>
+      </label>
+      <input type="range" class="form-range" id="rng-workers" min="0" max="50" step="1" value="10"
+             oninput="document.getElementById('lbl-workers').textContent=this.value+'명'">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">GMM 생산구분
+        <span class="tip-wrap"><button class="tip-btn">?</button>
+          <div class="tip-box" style="display:none"><div class="tip-title">GMM 생산구분 (0~3)</div>가우시안 혼합 모델(GMM)이 생산 패턴을 4그룹으로 분류한 결과입니다.<br>구분0: 비가동(~30kW)<br>구분1: 고생산(145~182kW)<br>구분2: 중생산(92~131kW)<br>구분3: 저생산(21~68kW)<div class="tip-src">📂 출처: 팀원 15번 노트북, okm_full_2021_pe.csv</div></div>
+        </span>
+      </label>
+      <select class="form-select" id="sel-gmm">
+        <option value="0">구분 0 — 비가동</option>
+        <option value="1" selected>구분 1 — 고생산</option>
+        <option value="2">구분 2 — 중생산</option>
+        <option value="3">구분 3 — 저생산</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">열처리로
+        <span class="tip-wrap"><button class="tip-btn">?</button>
+          <div class="tip-box" style="display:none"><div class="tip-title">열처리로 상태 (ON/OFF)</div>공장의 핵심 설비인 열처리로(Furnace) 가동 여부입니다. OFF 상태에서도 기저 전력 약 43.5kW를 항상 소비합니다. ON 시 피크가 크게 상승합니다.<div class="tip-src">📂 출처: EDA 분석 결과, furnace_on 파생변수</div></div>
+        </span>
+      </label>
+      <div class="radio-group">
+        <div class="radio-btn" id="furnace-off" onclick="setFurnace(0)">OFF</div>
+        <div class="radio-btn active" id="furnace-on" onclick="setFurnace(1)">ON</div>
+      </div>
+    </div>
+
+  </div>
+
+  <button class="predict-btn" onclick="runPredict()">📈 피크 예측 조회</button>
+</div>
+
+<!-- 메인 콘텐츠 -->
+<div class="main">
+  <div class="page-title">메인 대시보드</div>
+  <div class="page-caption">운영 조건을 입력하고 조회하면 피크 예측 결과가 표시됩니다.</div>
+
+  <!-- 경보 배너 (동적) -->
+  <div id="alert-banner" style="display:none;"></div>
+
+  <!-- 날씨 + 임계값 설정 -->
+  <div class="top-grid">
+
+    <!-- 현재 날씨 -->
+    <div class="weather-card">
+      <div class="weather-header">
+        <span class="weather-title">🌤 현재 날씨
+          <span class="tip-wrap"><button class="tip-btn">?</button>
+            <div class="tip-box" style="display:none"><div class="tip-title">현재 날씨 정보</div>기상청 단기예보 API에서 받아 PowerMgt.db WeatherForecast 테이블에 저장된 울산 지역 날씨입니다. 온도·습도·풍속·강수량이 predictor1.py에 자동 입력됩니다.<div class="tip-src">📂 출처: 기상청 단기예보 API → DB WeatherForecast</div></div>
+          </span>
+        </span>
+        <button class="refresh-btn" onclick="loadWeather()">🔄 새로고침</button>
+      </div>
+      <div class="weather-items">
+        <div class="weather-item">
+          <div class="w-icon">🌡️</div>
+          <div class="w-val" id="w-temp">--</div>
+          <div class="w-label">온도 (°C)
+            <span class="tip-wrap"><button class="tip-btn" style="margin-left:2px">?</button>
+              <div class="tip-box" style="display:none"><div class="tip-title">기온 (°C)</div>피처 중요도 8위. 여름 고온일수록 냉각 설비 가동이 늘어 피크에 영향을 줍니다. EDA 결과 r=+0.044로 생산 변수보다 영향이 작습니다.<div class="tip-src">📂 출처: 기상청 ASOS 울산 지점 152</div></div>
+            </span>
+          </div>
+        </div>
+        <div class="weather-item">
+          <div class="w-icon">💧</div>
+          <div class="w-val" id="w-hum">--</div>
+          <div class="w-label">습도 (%)
+            <span class="tip-wrap"><button class="tip-btn" style="margin-left:2px">?</button>
+              <div class="tip-box" style="display:none"><div class="tip-title">습도 (%)</div>피처 중요도 9위. 습도가 높을수록 냉방 부하가 증가합니다. 상관계수 r=-0.090으로 피크와 약한 음의 관계입니다.<div class="tip-src">📂 출처: 기상청 ASOS 울산 지점 152</div></div>
+            </span>
+          </div>
+        </div>
+        <div class="weather-item">
+          <div class="w-icon">💨</div>
+          <div class="w-val" id="w-wind">--</div>
+          <div class="w-label">풍속 (m/s)
+            <span class="tip-wrap"><button class="tip-btn" style="margin-left:2px">?</button>
+              <div class="tip-box" style="display:none"><div class="tip-title">풍속 (m/s)</div>모델 내부에서 log1p 변환 후 적용됩니다. 상관계수 r=+0.120. 바람이 강할수록 냉각 효율이 높아지는 경향이 있습니다.<div class="tip-src">📂 출처: 기상청 ASOS 울산 지점 152</div></div>
+            </span>
+          </div>
+        </div>
+        <div class="weather-item">
+          <div class="w-icon">🌧️</div>
+          <div class="w-val" id="w-rain">--</div>
+          <div class="w-label">강수량 (mm)
+            <span class="tip-wrap"><button class="tip-btn" style="margin-left:2px">?</button>
+              <div class="tip-box" style="display:none"><div class="tip-title">강수량 (mm)</div>1시간 누적 강수량입니다. 상관계수 r=-0.007로 피크와 거의 관계 없지만 날씨 맥락 파악용으로 표시합니다. 결측치(비 없음)는 0으로 처리됩니다.<div class="tip-src">📂 출처: 기상청 ASOS 울산 지점 152</div></div>
+            </span>
+          </div>
+        </div>
+      </div>
+      <div class="weather-note" id="weather-note">
+        GPS 위치 기반 · 기상청 단기예보 DB 데이터
+      </div>
+    </div>
+
+    <!-- 경보 임계값 설정 -->
+    <div class="threshold-card">
+      <div class="threshold-title">⚙️ 경보 임계값 설정
+        <span style="font-size:10px;color:var(--text3);font-weight:400;">(담당자 설정)</span>
+        <span class="tip-wrap"><button class="tip-btn" style="margin-left:4px">?</button>
+          <div class="tip-box" style="display:none"><div class="tip-title">경보 임계값이란?</div>예측 피크가 이 kW를 넘을 때 배너 색상과 경보 메시지가 자동으로 바뀝니다. 공장마다 계약 전력이 다르므로 담당자가 직접 조정해야 합니다.<br><br>예: 초과값을 207kW로 설정하면 연간 최대 피크 도달 시 즉각 빨간 경보<div class="tip-src">📂 출처: 담당자 설정값, 계약 전력 기준</div></div>
+        </span>
+      </div>
+      <div style="font-size:11px;color:var(--text3);line-height:1.6;margin-bottom:10px;padding:7px 9px;background:var(--bg3);border-radius:6px;border-left:3px solid var(--blue);">
+        예측 피크가 아래 kW를 넘으면<br>경보 배너 색상이 자동으로 변경됩니다.<br>
+        <span style="color:var(--text2);">공장 계약 전력 기준에 맞게 조정하세요.</span>
+      </div>
+      <div class="th-grid">
+        <div class="th-item th-caution">
+          <label style="color:var(--blue)">수의 (kW)</label>
+          <input type="number" id="th-caution" value="70" min="0" max="200">
+        </div>
+        <div class="th-item th-warning">
+          <label style="color:var(--yellow)">경고 (kW)</label>
+          <input type="number" id="th-warning" value="110" min="0" max="200">
+        </div>
+        <div class="th-item th-danger">
+          <label style="color:var(--orange)">위험 (kW)</label>
+          <input type="number" id="th-danger" value="150" min="0" max="200">
+        </div>
+        <div class="th-item th-exceed">
+          <label style="color:var(--red)">초과 (kW)</label>
+          <input type="number" id="th-exceed" value="180" min="0" max="300">
+        </div>
+      </div>
+      <div class="th-note">값 변경 시 경보 기준이 즉시 반영됩니다.</div>
+    </div>
+  </div>
+
+  <!-- KPI 카드 4개 -->
+  <div class="kpi-grid" id="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-label">예측 피크 (15분)
+        <span class="tip-wrap"><button class="tip-btn">?</button>
+          <div class="tip-box" style="display:none"><div class="tip-title">예측 피크 — 15분 (kW)</div>XGBoost v4.pkl이 Set_C(22개 피처)로 예측한 15분 누적 최대 전력입니다. 이 값이 연간 기본요금을 결정하는 핵심 지표입니다.<br><br>R²=0.78, RMSE=21.6kW<div class="tip-src">📂 출처: predictor1.py → energy_pipeline_v4.pkl</div></div>
+        </span>
+      </div>
+      <div class="kpi-val" id="kpi-peak15" style="color:var(--text3)">-- kW</div>
+      <div class="kpi-delta" id="kpi-peak15-delta">예측 전</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">위험 등급
+        <span class="tip-wrap"><button class="tip-btn">?</button>
+          <div class="tip-box" style="display:none"><div class="tip-title">피크 위험 등급</div>예측 피크와 왼쪽 임계값을 비교한 결과입니다.<br>🟢 양호: 임계값 미만<br>🔵 수의: 수의값 이상<br>🟡 경고: 경고값 이상<br>🟠 위험: 위험값 이상<br>🔴 초과: 초과값 이상 → 기본요금 결정 위험<div class="tip-src">📂 출처: 예측값 + 담당자 임계값 비교</div></div>
+        </span>
+      </div>
+      <div class="kpi-val" id="kpi-grade" style="color:var(--text3);font-size:20px;">--</div>
+      <div class="kpi-delta" id="kpi-grade-delta">예측 후 표시</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">예상 탄소 배출 (시간당)
+        <span class="tip-wrap"><button class="tip-btn">?</button>
+          <div class="tip-box" style="display:none"><div class="tip-title">시간당 CO₂ 배출량 (kg)</div>예측 피크(kW) × 0.4153 × 1시간으로 계산한 Scope 2 간접 탄소 배출량입니다.<br><br>공식: kW ÷ 1000 × 0.4153 × 1000 = kg CO₂<br><br>GRI 302 ESG 보고서의 핵심 지표입니다.<div class="tip-src">📂 출처: 온실가스종합정보센터 2021년 배출계수</div></div>
+        </span>
+      </div>
+      <div class="kpi-val blue" id="kpi-co2">-- kg</div>
+      <div class="kpi-delta">CO₂ × 0.4153 계수</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">시간당 전기 요금
+        <span class="tip-wrap"><button class="tip-btn">?</button>
+          <div class="tip-box" style="display:none"><div class="tip-title">시간당 전기 요금 (원)</div>예측 피크 × TOU 단가로 계산한 이 시간의 전력량 요금입니다.<br><br>TOU 단가:<br>경부하 95.7원 / 중간 121.5원 / 최대 155.0원<br><br>월·시간·주말 여부에 따라 자동 선택됩니다.<div class="tip-src">📂 출처: KEPCO 산업용(을) TOU 요금 체계</div></div>
+        </span>
+      </div>
+      <div class="kpi-val blue" id="kpi-cost">-- 원</div>
+      <div class="kpi-delta" id="kpi-cost-tou">TOU 요금 기준</div>
+    </div>
+  </div>
+
+  <!-- 24시간 예측 차트 -->
+  <div class="chart-card" style="position:relative;">
+    <div class="chart-header">
+      <span class="chart-title">📊 24시간 피크 예측 추이
+        <span class="tip-wrap"><button class="tip-btn">?</button>
+          <div class="tip-box" style="display:none"><div class="tip-title">24시간 피크 예측 차트</div>입력한 운영 조건 기준으로 오늘 0~23시 전 시간대의 피크를 예측한 결과입니다. 막대 색상은 위험 등급에 따라 자동 변경됩니다.<br><br>빨간 점선: 초과 기준 / 주황 점선: 위험 기준<div class="tip-src">📂 출처: predictor1.py 24회 반복 예측</div></div>
+        </span>
+      </span>
+      <div class="chart-legend">
+        <span><span class="legend-dot" style="background:#2563EB"></span>예측 피크 (kW)</span>
+        <span><span class="legend-dot" style="background:#DC2626;opacity:.5"></span>초과 기준</span>
+        <span><span class="legend-dot" style="background:#EA580C;opacity:.5"></span>위험 기준</span>
+      </div>
+    </div>
+    <div class="chart-wrap">
+      <!-- 초기 안내 -->
+      <div class="empty-state" id="chart-empty">
+        <div class="empty-icon">📈</div>
+        <div class="empty-text">왼쪽에서 운영 조건을 입력하고<br><strong>피크 예측 조회</strong> 버튼을 누르세요</div>
+      </div>
+      <canvas id="chart-24h" style="display:none;"></canvas>
+      <div class="loading" id="chart-loading">
+        <div class="spinner"></div>
+        <span>AI 예측 중...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4타겟 상세 카드 -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;" id="detail-grid">
+    <div class="kpi-card">
+      <div class="kpi-label">15분 피크
+        <span class="tip-wrap"><button class="tip-btn">?</button>
+          <div class="tip-box" style="display:none"><div class="tip-title">15분 피크 예측 (kW)</div>15분 간격으로 측정된 누적 최대 전력입니다. 연간 기본요금 산정의 직접 기준이 됩니다. v4.pkl 모델 중 '15분' 전용 모델이 예측합니다.<div class="tip-src">📂 출처: energy_pipeline_v4.pkl → models['15분']['Set_C']</div></div>
+        </span>
+      </div>
+      <div class="kpi-val blue" id="d-15">-- kW</div>
+      <div class="kpi-delta">Set_C 예측 (R²=0.78)</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">30분 피크
+        <span class="tip-wrap"><button class="tip-btn">?</button>
+          <div class="tip-box" style="display:none"><div class="tip-title">30분 피크 예측 (kW)</div>30분 누적 측정 최대 전력입니다. 15분 피크보다 약간 높게 나오는 경향이 있습니다. 설비 스케줄링 참고용입니다.<div class="tip-src">📂 출처: energy_pipeline_v4.pkl → models['30분']['Set_C']</div></div>
+        </span>
+      </div>
+      <div class="kpi-val blue" id="d-30">-- kW</div>
+      <div class="kpi-delta">Set_C 예측</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">45분 피크
+        <span class="tip-wrap"><button class="tip-btn">?</button>
+          <div class="tip-box" style="display:none"><div class="tip-title">45분 피크 예측 (kW)</div>45분 누적 측정 최대 전력입니다. 생산 피크 시간대에 가장 높게 나타납니다. DR 발령 구간 파악에 활용됩니다.<div class="tip-src">📂 출처: energy_pipeline_v4.pkl → models['45분']['Set_C']</div></div>
+        </span>
+      </div>
+      <div class="kpi-val blue" id="d-45">-- kW</div>
+      <div class="kpi-delta">Set_C 예측</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">60분 피크
+        <span class="tip-wrap"><button class="tip-btn">?</button>
+          <div class="tip-box" style="display:none"><div class="tip-title">60분 피크 예측 (kW)</div>1시간 누적 측정 최대 전력입니다. CBL 계산 및 DR 감축량 기준으로 사용됩니다. 4개 타겟 중 가장 안정적인 값입니다.<div class="tip-src">📂 출처: energy_pipeline_v4.pkl → models['60분']['Set_C']</div></div>
+        </span>
+      </div>
+      <div class="kpi-val blue" id="d-60">-- kW</div>
+      <div class="kpi-delta">Set_C 예측</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── 전역 툴팁 (fixed 방식) ────────────────────────────────────
+const gTip = document.getElementById('g-tip');
+let tipTimer = null;
+
+document.querySelectorAll('.tip-btn').forEach(btn => {
+  const box = btn.nextElementSibling;  // .tip-box
+  if (!box) return;
+
+  btn.addEventListener('mouseenter', e => {
+    clearTimeout(tipTimer);
+    gTip.innerHTML = box.innerHTML;
+    gTip.style.display = 'block';
+    positionTip(e);
+  });
+  btn.addEventListener('mousemove', positionTip);
+  btn.addEventListener('mouseleave', () => {
+    tipTimer = setTimeout(() => { gTip.style.display = 'none'; }, 100);
+  });
+});
+
+function positionTip(e) {
+  const pad = 12;
+  const tw  = 240;
+  const th  = gTip.offsetHeight || 120;
+  let x = e.clientX + pad + 6;
+  let y = e.clientY - 10;
+  // 오른쪽 화면 밖으로 나가면 왼쪽에 표시
+  if (x + tw > window.innerWidth - pad) x = e.clientX - tw - pad;
+  // 아래 화면 밖으로 나가면 위로
+  if (y + th > window.innerHeight - pad) y = window.innerHeight - th - pad;
+  if (y < pad) y = pad;
+  gTip.style.left = x + 'px';
+  gTip.style.top  = y + 'px';
+}
+
+// ── 전역 상태 ─────────────────────────────────────────────────
+let furnaceVal = 1;
+let chart24h   = null;
+
+// ── 열처리로 토글 ─────────────────────────────────────────────
+function setFurnace(v) {
+  furnaceVal = v;
+  document.getElementById('furnace-off').classList.toggle('active', v === 0);
+  document.getElementById('furnace-on').classList.toggle('active', v === 1);
+}
+
+// ── 날씨 로드 (DB WeatherForecast 최신값 시뮬) ───────────────
+// ※ Streamlit 전환 시 실제 DB 조회로 교체
+const WEATHER_MOCK = { temp: 12, hum: 55, wind: 1.0, rain: 0.0, note: '2026-03-23 00시 · 기상청 단기예보 기반' };
+function loadWeather() {
+  document.getElementById('w-temp').textContent  = WEATHER_MOCK.temp;
+  document.getElementById('w-hum').textContent   = WEATHER_MOCK.hum;
+  document.getElementById('w-wind').textContent  = WEATHER_MOCK.wind.toFixed(1);
+  document.getElementById('w-rain').textContent  = WEATHER_MOCK.rain.toFixed(1);
+  document.getElementById('weather-note').textContent = WEATHER_MOCK.note;
+}
+loadWeather();
+
+// ── TOU 요금 계산 ────────────────────────────────────────────
+function getTOU(month, hour, isWeekend) {
+  if (isWeekend) return { bucket: 0, price: 95.7, label: '경부하' };
+  if ([6,7,8].includes(month)) {
+    if ([10,11,12,13,14,15,16,17].includes(hour)) return { bucket:2, price:155.0, label:'최대부하' };
+    if ([22,23,0,1,2,3,4,5].includes(hour))       return { bucket:0, price:95.7,  label:'경부하' };
+    return { bucket:1, price:121.5, label:'중간부하' };
+  }
+  if ([11,12,1,2].includes(month)) {
+    if ([9,10,17,18,19].includes(hour))            return { bucket:2, price:155.0, label:'최대부하' };
+    if ([22,23,0,1,2,3,4,5].includes(hour))        return { bucket:0, price:95.7,  label:'경부하' };
+    return { bucket:1, price:121.5, label:'중간부하' };
+  }
+  if ([10,11,12,13,14,15,16,17].includes(hour))   return { bucket:1, price:121.5, label:'중간부하' };
+  if ([22,23,0,1,2,3,4,5].includes(hour))         return { bucket:0, price:95.7,  label:'경부하' };
+  return { bucket:1, price:121.5, label:'중간부하' };
+}
+
+// ── 위험 등급 판정 ────────────────────────────────────────────
+function getGrade(kw) {
+  const c = +document.getElementById('th-caution').value;
+  const w = +document.getElementById('th-warning').value;
+  const d = +document.getElementById('th-danger').value;
+  const e = +document.getElementById('th-exceed').value;
+  if (kw >= e)  return { label:'초과', cls:'red',    color:'var(--red)',    bg:'var(--red-bg)',    icon:'🔴' };
+  if (kw >= d)  return { label:'위험', cls:'orange',  color:'var(--orange)', bg:'var(--orange-bg)', icon:'🟠' };
+  if (kw >= w)  return { label:'경고', cls:'yellow',  color:'var(--yellow)', bg:'var(--yellow-bg)', icon:'🟡' };
+  if (kw >= c)  return { label:'수의', cls:'blue',    color:'var(--blue)',   bg:'var(--blue-bg)',   icon:'🔵' };
+  return         { label:'양호', cls:'green',  color:'var(--green)',  bg:'var(--green-bg)',  icon:'🟢' };
+}
+
+// ── 예측 시뮬 (실제 predictor1.py 호출 전 JS 시뮬값) ─────────
+// ※ Streamlit 전환 시 st.session_state + predictor1.predict() 로 교체
+function simulatePredict(month, hour, output, gmm, furnace) {
+  const base = [40, 48, 38, 46];          // Set_A 기준
+  const weatherBonus = WEATHER_MOCK.temp > 25 ? 8 : 0;
+  const prodBonus    = output / 9830 * 80;
+  const gmmMult      = [0.4, 1.0, 0.75, 0.45, 0.25][gmm] || 0.4;
+  const furnaceBonus = furnace ? 15 : 0;
+  const timeBonus    = (hour >= 9 && hour <= 17) ? 10 : -5;
+  const setC15 = Math.max(15, Math.min(207,
+    base[0] + prodBonus * gmmMult + furnaceBonus + timeBonus + weatherBonus
+  ));
+  // 24시간 시뮬
+  const h24 = [];
+  for (let h = 0; h < 24; h++) {
+    const tb = (h >= 9 && h <= 17) ? 10 : -8;
+    h24.push(Math.max(15, Math.min(207, setC15 * 0.85 + tb + (Math.random()-0.5)*6)));
+  }
+  h24[hour] = setC15;  // 현재 시간에 실제 예측값
+  return {
+    setA: base,
+    setC: [setC15, setC15*1.07, setC15*1.18, setC15*0.99],
+    h24
+  };
+}
+
+// ── 메인 예측 실행 ────────────────────────────────────────────
+function runPredict() {
+  const month   = +document.getElementById('sel-month').value;
+  const weekday = +document.getElementById('sel-weekday').value;
+  const hour    = +document.getElementById('rng-hour').value;
+  const output  = +document.getElementById('rng-output').value;
+  const gmm     = +document.getElementById('sel-gmm').value;
+
+  const isWeekend = weekday >= 6;
+
+  // 로딩 표시
+  document.getElementById('chart-loading').classList.add('show');
+  document.getElementById('chart-empty').style.display = 'none';
+
+  setTimeout(() => {
+    const pred = simulatePredict(month, hour, output, gmm, furnaceVal);
+    const peak15 = pred.setC[0];
+    const grade  = getGrade(peak15);
+
+    // TOU 계산
+    const tou  = getTOU(month, hour, isWeekend);
+    const cost = Math.round(peak15 * tou.price);
+
+    // CO2
+    const co2 = (peak15 / 1000 * 0.4153 * 1000).toFixed(2);
+
+    // ── KPI 업데이트 ─────────────────────────────────────────
+    const pk15el = document.getElementById('kpi-peak15');
+    pk15el.textContent = peak15.toFixed(1) + ' kW';
+    pk15el.className   = 'kpi-val ' + grade.cls;
+
+    const gradeEl = document.getElementById('kpi-grade');
+    gradeEl.textContent = grade.icon + ' ' + grade.label;
+    gradeEl.style.color = grade.color;
+    gradeEl.style.fontSize = '18px';
+
+    document.getElementById('kpi-peak15-delta').textContent =
+      `기준 피크 대비 ${(peak15 - 100) >= 0 ? '+' : ''}${(peak15-100).toFixed(1)}kW`;
+
+    document.getElementById('kpi-co2').textContent = co2 + ' kg';
+    document.getElementById('kpi-cost').textContent = cost.toLocaleString() + ' 원';
+    document.getElementById('kpi-cost-tou').textContent = `${tou.label} (${tou.price}원/kWh)`;
+
+    // ── 4타겟 상세 ───────────────────────────────────────────
+    document.getElementById('d-15').textContent = pred.setC[0].toFixed(1) + ' kW';
+    document.getElementById('d-30').textContent = pred.setC[1].toFixed(1) + ' kW';
+    document.getElementById('d-45').textContent = pred.setC[2].toFixed(1) + ' kW';
+    document.getElementById('d-60').textContent = pred.setC[3].toFixed(1) + ' kW';
+
+    // ── 경보 배너 ────────────────────────────────────────────
+    const banner = document.getElementById('alert-banner');
+    const alertMap = {
+      '초과': 'alert-danger',
+      '위험': 'alert-warning',
+      '경고': 'alert-info',
+      '수의': 'alert-info',
+      '양호': 'alert-success',
+    };
+    const msgMap = {
+      '초과': `🔴 피크 초과 경보! ${peak15.toFixed(1)}kW — 즉각 설비 조정 필요`,
+      '위험': `🟠 피크 위험 구간! ${peak15.toFixed(1)}kW — 부하 분산 권고`,
+      '경고': `🟡 피크 경고 구간. ${peak15.toFixed(1)}kW — 비핵심 설비 점검`,
+      '수의': `🔵 피크 수의 구간. ${peak15.toFixed(1)}kW — 현재 조건 모니터링`,
+      '양호': `🟢 양호 구간. ${peak15.toFixed(1)}kW — 현재 조건 유지`,
+    };
+    banner.style.display = 'flex';
+    banner.className = 'alert-banner ' + alertMap[grade.label];
+    banner.textContent = msgMap[grade.label];
+
+    // ── 24h 차트 ─────────────────────────────────────────────
+    const labels = Array.from({length:24}, (_, i) => i+'시');
+    const colors = pred.h24.map(v => {
+      const g = getGrade(v);
+      return {
+        '초과':'rgba(220,38,38,.85)',
+        '위험':'rgba(234,88,12,.80)',
+        '경고':'rgba(217,119,6,.80)',
+        '수의':'rgba(37,99,235,.75)',
+        '양호':'rgba(5,150,105,.75)',
+      }[g.label];
+    });
+
+    const thExceed  = +document.getElementById('th-exceed').value;
+    const thDanger  = +document.getElementById('th-danger').value;
+
+    if (chart24h) chart24h.destroy();
+    document.getElementById('chart-24h').style.display = 'block';
+    const ctx = document.getElementById('chart-24h').getContext('2d');
+    chart24h = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: '예측 피크 (kW)',
+          data: pred.h24.map(v => +v.toFixed(1)),
+          backgroundColor: colors,
+          borderRadius: 4,
+          borderSkipped: false,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => `${ctx.parsed.y.toFixed(1)} kW`
+            }
+          },
+          annotation: {}
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+          y: {
+            min: 0, max: 220,
+            grid: { color: 'rgba(0,0,0,.05)' },
+            ticks: { font: { size: 11 }, callback: v => v + 'kW' }
+          }
+        }
+      },
+      plugins: [{
+        afterDraw(chart) {
+          const { ctx: c, chartArea: { left, right }, scales: { y } } = chart;
+          const drawLine = (val, color, label) => {
+            const yPos = y.getPixelForValue(val);
+            c.save();
+            c.beginPath();
+            c.setLineDash([5,4]);
+            c.strokeStyle = color;
+            c.lineWidth = 1.5;
+            c.moveTo(left, yPos);
+            c.lineTo(right, yPos);
+            c.stroke();
+            c.fillStyle = color;
+            c.font = '10px Noto Sans KR';
+            c.fillText(label + ' ' + val + 'kW', right - 80, yPos - 4);
+            c.restore();
+          };
+          drawLine(thExceed, '#DC2626', '초과');
+          drawLine(thDanger, '#EA580C', '위험');
+        }
+      }]
+    });
+
+    document.getElementById('chart-loading').classList.remove('show');
+  }, 600);
+}
+
+// 임계값 변경 시 배너 재계산
+['th-caution','th-warning','th-danger','th-exceed'].forEach(id => {
+  document.getElementById(id).addEventListener('change', () => {
+    const peakEl = document.getElementById('kpi-peak15');
+    const peak = parseFloat(peakEl.textContent);
+    if (!isNaN(peak)) {
+      const grade = getGrade(peak);
+      peakEl.className = 'kpi-val ' + grade.cls;
+    }
+  });
+});
+</script>
+</body>
+</html>
