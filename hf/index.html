@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<body>
+   <h1>상품 정보</h1>
+    <button onclick="getItemInfo()">상품 정보 가져오기</button>
+    <div id="item-info"></div>
+
+    <script>
+      function getItemInfo(){
+        fetch('http://127.0.0.1:8000/items/5')
+        .then(response => response.json())
+        .then(data=>{
+          document.getElementById('item-info').innerText =
+          `상품아이디: ${data.item_id}, 상품명: ${data.name}`;
+          })
+      }
+    </script>
+</body>
+</html>

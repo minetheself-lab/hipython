@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>감정 분석기</title>
+    <style>
+        /* 간단한 디자인 추가 */
+        #userInput {
+            width: 100%;
+            max-width: 500px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+            display: block;
+            margin-bottom: 10px;
+        }
+        #result-area {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+            min-height: 50px;
+        }
+    </style>
+</head>
+<body>
+    <h1>기사 감정 분석</h1>
+    <p>분석할 기사 타이틀이나 내용을 입력하세요:</p>
+    
+    <textarea id="userInput" rows="5" placeholder="여기에 여러 줄의 문장을 입력할 수 있습니다..."></textarea>
+    
+    <button onclick="analyzeSentiment()">분석하기</button>
+
+    <div id="result-area">
+        <p>결과가 여기에 표시됩니다.</p>
+    </div>
+
+    <script>
+      async function analyzeSentiment() {
+        const textValue = document.getElementById('userInput').value;
+        const resultDiv = document.getElementById('result-area');
+
+        if (!textValue.trim()) {
+            alert("내용을 입력해주세요!");
+            return;
+        }
+
+        resultDiv.innerText = "분석 중...";
+
+        try {
+          const response = await fetch('http://127.0.0.1:8000/sentiment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: textValue }) 
+          });
+
+          if (!response.ok) throw new Error('서버 응답 에러');
+
+          const data = await response.json();
+
+          // 결과 출력
+          resultDiv.innerHTML = `
+            <p><strong>입력된 텍스트:</strong><br>${data.text}</p>
+            <hr>
+            <p><strong>감정 분석 결과:</strong> ${data.label}</p>
+            <p><strong>신뢰 점수:</strong> ${(data.score * 100).toFixed(2)}%</p>
+          `;
+
+        } catch (error) {
+          resultDiv.innerText = '에러 발생: ' + error.message;
+        }
+      }
+    </script>
+</body>
+</html>

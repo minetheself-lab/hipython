@@ -1,0 +1,21 @@
+names:
+- '0'
+- '1'
+- '2'
+- '3'
+- '4'
+- '5'
+- '6'
+- '7'
+- '8'
+- '9'
+nc: 10
+roboflow:
+  license: MIT
+  project: mnist_numbers-mcvzp
+  url: https://universe.roboflow.com/0301s-workspace/mnist_numbers-mcvzp/dataset/1
+  version: 1
+  workspace: 0301s-workspace
+test: ../test/images
+train: ../train/images
+val: ../valid/images

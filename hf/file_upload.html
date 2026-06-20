@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>감성 분석 테스트</title>
+</head>
+<body>
+
+    <h2>금융 감성 분석 (KR-FinBert-SC)</h2>
+    <p>텍스트 파일(.txt)을 업로드하여 분석 결과를 확인하세요.</p>
+
+    <form action="http://127.0.0.1:8000/analysis/sentiment" method="POST" enctype="multipart/form-data">
+        <div>
+            <label for="file">텍스트 파일 선택:</label>
+            <input type="file" id="file" name="file" accept=".txt" required>
+        </div>
+        
+        <br>
+
+        <button type="submit">분석 요청</button>
+    </form>
+
+    <hr>
+    <small>주의: 서버가 실행 중인 상태에서 '분석 요청'을 눌러야 결과가 화면에 JSON으로 출력됩니다.</small>
+
+</body>
+</html>

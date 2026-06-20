@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="light" style=""><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>소프트웨어 요구사항 정의서 - 전력 피크 경보 &amp; DR 수익 시뮬레이션 플랫폼</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&amp;display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --primary-color: #0052cc;
+        --secondary-color: #444;
+        --border-color: #ddd;
+        --header-bg: #f5f7fa;
+        --must-have-bg: #ffebee;
+        --must-have-text: #c62828;
+        --should-have-bg: #fff3e0;
+        --should-have-text: #ef6c00;
+        --nice-to-have-bg: #e8f5e9;
+        --nice-to-have-text: #2e7d32;
+      }
+
+      body {
+        max-width: 880px;
+        margin: 0 auto;
+        padding: 40px 60px;
+        font-family: 'Noto Sans KR', sans-serif;
+        color: #333;
+        line-height: 1.6;
+        background-color: #fff;
+      }
+
+      h1,
+      h2,
+      h3,
+      h4,
+      h5,
+      h6 {
+        color: #222;
+        font-weight: 700;
+        margin-top: 1.5em;
+        margin-bottom: 0.5em;
+      }
+
+      h1 {
+        font-size: 28px;
+        text-align: center;
+        margin-bottom: 40px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #333;
+      }
+
+      h2 {
+        font-size: 22px;
+        border-bottom: 1px solid #ddd;
+        padding-bottom: 10px;
+        margin-top: 40px;
+      }
+
+      h3 {
+        font-size: 18px;
+        margin-top: 30px;
+        color: var(--primary-color);
+      }
+
+      p,
+      li {
+        font-size: 15px;
+        text-align: justify;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        font-size: 14px;
+      }
+
+      th,
+      td {
+        border: 1px solid var(--border-color);
+        padding: 10px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background-color: var(--header-bg);
+        font-weight: 600;
+        color: #333;
+      }
+
+      tr:nth-child(even) {
+        background-color: #fafafa;
+      }
+
+      .cover-page {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 800px;
+        text-align: center;
+        border: 1px solid #ddd;
+        padding: 40px;
+        margin-bottom: 60px;
+      }
+
+      .cover-title {
+        font-size: 32px;
+        font-weight: bold;
+        margin-bottom: 20px;
+      }
+
+      .cover-subtitle {
+        font-size: 24px;
+        color: #555;
+        margin-bottom: 80px;
+      }
+
+      .cover-info {
+        width: 100%;
+        max-width: 500px;
+        margin: 0 auto;
+        text-align: left;
+      }
+
+      .cover-info table {
+        border: none;
+      }
+
+      .cover-info th,
+      .cover-info td {
+        border: none;
+        padding: 8px;
+      }
+
+      .cover-info th {
+        background-color: transparent;
+        width: 120px;
+        text-align: right;
+        padding-right: 20px;
+      }
+
+      .page-break {
+        page-break-before: always;
+        margin-top: 60px;
+      }
+
+      .priority-must {
+        background-color: var(--must-have-bg);
+        color: var(--must-have-text);
+        font-weight: 600;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 12px;
+      }
+
+      .priority-should {
+        background-color: var(--should-have-bg);
+        color: var(--should-have-text);
+        font-weight: 600;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 12px;
+      }
+
+      .priority-nice {
+        background-color: var(--nice-to-have-bg);
+        color: var(--nice-to-have-text);
+        font-weight: 600;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 12px;
+      }
+
+      .toc {
+        background-color: #f9f9f9;
+        padding: 20px;
+        border: 1px solid #eee;
+        margin-bottom: 40px;
+      }
+
+      .toc ul {
+        list-style-type: none;
+        padding-left: 0;
+      }
+
+      .toc li {
+        margin-bottom: 8px;
+      }
+
+      .toc a {
+        text-decoration: none;
+        color: #0052cc;
+      }
+
+      .toc a:hover {
+        text-decoration: underline;
+      }
+
+      .section-number {
+        margin-right: 10px;
+      }
+
+      /* ID Column Width */
+      td:first-child {
+        font-weight: 500;
+      }
+    </style>
+  </head>
+  <body style="">
+    <!-- Cover Page -->
+    <div class="cover-page">
+      <div class="cover-title">전력 피크 경보 &amp; DR 수익 시뮬레이션 서비스</div>
+      <div class="cover-subtitle">소프트웨어 요구사항 정의서<br>(Software Requirements Specification)</div>
+
+      <div class="cover-info">
+        <table>
+          <tbody><tr>
+            <th>프로젝트명</th>
+            <td>전력 피크 경보 &amp; DR 수익 시뮬레이션 플랫폼</td>
+          </tr>
+          <tr>
+            <th>문서명</th>
+            <td>소프트웨어 요구사항 정의서</td>
+          </tr>
+          <tr>
+            <th>버전</th>
+            <td>1.0</td>
+          </tr>
+          <tr>
+            <th>작성일</th>
+            <td>2026-03-16</td>
+          </tr>
+          <tr>
+            <th>문서 상태</th>
+            <td>Draft</td>
+          </tr>
+        </tbody></table>
+      </div>
+    </div>
+
+    <!-- Table of Contents -->
+    <div class="page-break"></div>
+    <h2>목차</h2>
+    <div class="toc">
+      <ul>
+        <li><a href="#section1">1. 문서 개요</a></li>
+        <li><a href="#section2">2. 시스템 개요</a></li>
+        <li><a href="#section3">3. 이해관계자 및 사용자 요구사항</a></li>
+        <li><a href="#section4">4. 기능 요구사항 (Functional Requirements)</a></li>
+        <li><a href="#section5">5. 비기능 요구사항 (Non-Functional Requirements)</a></li>
+        <li><a href="#section6">6. 데이터 요구사항</a></li>
+        <li><a href="#section7">7. 시스템 제약사항</a></li>
+        <li><a href="#section8">8. 우선순위 매트릭스 (MoSCoW)</a></li>
+        <li><a href="#section9">9. 변경 이력</a></li>
+      </ul>
+    </div>
+
+    <!-- 1. 문서 개요 -->
+    <div id="section1">
+      <h2>1. 문서 개요</h2>
+
+      <h3>1.1 목적</h3>
+      <p>
+        본 문서는 <strong>전력 피크 경보 &amp; DR 수익 시뮬레이션 플랫폼</strong> 구축을 위한 소프트웨어 요구사항을 정의하는
+        것을 목적으로 한다. 본 시스템은 제조공장의 전력 데이터를 기반으로 피크 발생을 사전에 예측하여 경보를 제공하고,
+        DR(수요반응) 참여 시 예상 수익을 시뮬레이션하여 전력 비용 절감 및 수익 창출을 지원하는 AI 기반 플랫폼이다.
+      </p>
+
+      <h3>1.2 범위</h3>
+      <p>
+        본 시스템의 범위는 제조공장의 전력 관리 플랫폼으로, 중소기업부터 대기업 제조공장까지 폭넓게 적용 가능하다. 주요
+        기능으로는 전력 사용량 예측, 실시간 피크 경보, 설비 부하 분산 추천, DR 수익 시뮬레이션이 포함된다. 데이터는
+        KAMP(인공지능 중소벤처 제조플랫폼)의 실제 공장 데이터를 기반으로 하며, 별도의 하드웨어 설치 없이 CSV 파일
+        업로드만으로 즉시 분석이 가능한 SaaS 형태의 웹 애플리케이션으로 제공된다.
+      </p>
+
+      <h3>1.3 용어 정의</h3>
+      <table>
+        <tbody><tr>
+          <th style="width: 20%">용어</th>
+          <th>정의</th>
+        </tr>
+        <tr>
+          <td>피크(Peak)</td>
+          <td>특정 기간(보통 15분 단위) 동안 측정된 최대 전력 사용량(kW)을 의미한다.</td>
+        </tr>
+        <tr>
+          <td>피크연동제</td>
+          <td>
+            직전 12개월 중 하계(7~9월) 및 동계(12~2월)에 발생한 최고 피크 전력을 기준으로 향후 1년간의 기본요금을
+            산정하는 제도이다.
+          </td>
+        </tr>
+        <tr>
+          <td>DR(Demand Response)</td>
+          <td>
+            수요반응 제도로, 전력 수급 위기 시 전력거래소의 요청에 따라 전력 사용량을 감축하면 그에 상응하는 보상금을
+            지급받는 제도이다.
+          </td>
+        </tr>
+        <tr>
+          <td>SMP(System Marginal Price)</td>
+          <td>계통한계가격으로, 전력 시장에서 시간대별로 결정되는 전력 거래 가격을 의미한다.</td>
+        </tr>
+        <tr>
+          <td>FEMS</td>
+          <td>
+            Factory Energy Management System의 약자로, 공장 내 에너지 사용 현황을 모니터링하고 제어하는 시스템을 말한다.
+          </td>
+        </tr>
+        <tr>
+          <td>kWh / kW</td>
+          <td>kWh는 시간당 전력 사용량(에너지의 양)을, kW는 순간 전력(에너지의 세기)을 의미한다.</td>
+        </tr>
+      </tbody></table>
+    </div>
+
+    <!-- 2. 시스템 개요 -->
+    <div id="section2">
+      <h2>2. 시스템 개요</h2>
+
+      <h3>2.1 시스템 목적</h3>
+      <p>
+        본 시스템은 예측 불가능한 전력 피크로 인한 과도한 기본요금 지출 문제를 해결하고, 복잡한 DR 정산 과정을
+        자동화하여 제조기업의 전력 비용 최적화를 달성하는 것을 목표로 한다.
+      </p>
+
+      <h3>2.2 시스템 컨텍스트</h3>
+      <ul>
+        <li><strong>외부 시스템:</strong> KAMP 데이터셋(입력 데이터), KEPCO 전기요금 체계(계산 로직)</li>
+        <li>
+          <strong>사용자:</strong>
+          <ul>
+            <li>중소기업 전기 담당자 (실무 운영)</li>
+            <li>중소 공장 대표 (의사결정)</li>
+            <li>대기업 에너지 관리팀 (통합 관리)</li>
+          </ul>
+        </li>
+        <li><strong>출력:</strong> 향후 전력 예측 그래프, 피크 위험 경보, 설비 제어 추천, DR 수익 리포트</li>
+      </ul>
+
+      <h3>2.3 기술 스택</h3>
+      <table>
+        <tbody><tr>
+          <th style="width: 25%">구분</th>
+          <th>상세 기술</th>
+        </tr>
+        <tr>
+          <td>프로그래밍 언어</td>
+          <td>Python 3.8+</td>
+        </tr>
+        <tr>
+          <td>데이터 처리</td>
+          <td>pandas, NumPy</td>
+        </tr>
+        <tr>
+          <td>AI/ML 모델링</td>
+          <td>XGBoost, Random Forest, DNN (Scikit-learn, TensorFlow/PyTorch)</td>
+        </tr>
+        <tr>
+          <td>최적화 알고리즘</td>
+          <td>Google OR-Tools</td>
+        </tr>
+        <tr>
+          <td>웹 프레임워크</td>
+          <td>Streamlit</td>
+        </tr>
+        <tr>
+          <td>시각화</td>
+          <td>Plotly</td>
+        </tr>
+      </tbody></table>
+    </div>
+
+    <!-- 3. 이해관계자 및 사용자 요구사항 -->
+    <div id="section3" class="page-break">
+      <h2>3. 이해관계자 및 사용자 요구사항</h2>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 15%">페르소나</th>
+            <th style="width: 15%">역할</th>
+            <th style="width: 10%">기술수준</th>
+            <th style="width: 30%">핵심 요구사항</th>
+            <th style="width: 30%">기대 효과</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>김철수 (45세)</td>
+            <td>중소기업 전기 담당자</td>
+            <td>낮음</td>
+            <td>
+              - 피크 발생 사전 경보<br>
+              - 복잡한 DR 계산 자동화<br>
+              - 스마트폰 실시간 알림
+            </td>
+            <td>
+              - 수동 모니터링 업무 감소<br>
+              - 피크 초과 사고 예방
+            </td>
+          </tr>
+          <tr>
+            <td>박사장 (52세)</td>
+            <td>중소 공장 대표</td>
+            <td>매우 낮음</td>
+            <td>
+              - 비용 절감액의 명확한 가시화<br>
+              - 한눈에 들어오는 간단한 대시보드<br>
+              - 별도 설치비 없는 솔루션
+            </td>
+            <td>
+              - 연간 수백만 원의 전기요금 절감<br>
+              - 에너지 비용 투명성 확보
+            </td>
+          </tr>
+          <tr>
+            <td>이영희 (35세)</td>
+            <td>대기업 에너지 관리팀</td>
+            <td>높음</td>
+            <td>
+              - 다수 공장 데이터 통합 관리<br>
+              - ESG 보고서 작성 자동화<br>
+              - 정교한 데이터 분석 기능
+            </td>
+            <td>
+              - 전사적 에너지 효율 최적화<br>
+              - 연간 수천만 원 규모의 DR 수익 창출
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 4. 기능 요구사항 -->
+    <div id="section4" class="page-break">
+      <h2>4. 기능 요구사항 (Functional Requirements)</h2>
+
+      <h3>4.1 전력 사용량 예측 (Power Usage Prediction)</h3>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 10%">ID</th>
+            <th style="width: 20%">기능명</th>
+            <th style="width: 45%">설명</th>
+            <th style="width: 10%">우선순위</th>
+            <th style="width: 15%">수용기준</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>FR-001</td>
+            <td>시간별 전력 사용량 예측</td>
+            <td>
+              기온, 생산량, 시간대, 요일, 공장인원, 전기요금 구간을 입력받아 향후 1~4시간의 전력 사용량을 예측한다.
+            </td>
+            <td><span class="priority-must">Must Have</span></td>
+            <td>MAPE ≤ 5%<br>예측 응답시간 ≤ 3초</td>
+          </tr>
+          <tr>
+            <td>FR-002</td>
+            <td>다중 모델 비교</td>
+            <td>Random Forest, XGBoost, DNN 3가지 모델의 성능을 비교하고 최적의 모델을 자동으로 선택한다.</td>
+            <td><span class="priority-must">Must Have</span></td>
+            <td>RMSE, MAE, MAPE 지표 제공</td>
+          </tr>
+          <tr>
+            <td>FR-003</td>
+            <td>예측 결과 시각화</td>
+            <td>시간대별 예측 전력량을 Plotly 라이브러리를 사용하여 직관적인 그래프로 표시한다.</td>
+            <td><span class="priority-should">Should Have</span></td>
+            <td>1~4시간 예측 곡선 표시</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>4.2 피크 경보 시스템 (Peak Alert System)</h3>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 10%">ID</th>
+            <th style="width: 20%">기능명</th>
+            <th style="width: 45%">설명</th>
+            <th style="width: 10%">우선순위</th>
+            <th style="width: 15%">수용기준</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>FR-004</td>
+            <td>3단계 피크 경보</td>
+            <td>
+              계약전력 대비 사용량을 분석하여 3단계 경보를 발령한다.<br>- 주의: 80%<br>- 위험: 90%<br>- 초과임박:
+              95%
+            </td>
+            <td><span class="priority-must">Must Have</span></td>
+            <td>피크 도달 30분~1시간 전 경보 발송 성공률 95% 이상</td>
+          </tr>
+          <tr>
+            <td>FR-005</td>
+            <td>절감액 자동 계산</td>
+            <td>피크 감축 성공 시 예상되는 월간 및 연간 전기요금 절감액을 KEPCO 요금 기준에 맞춰 자동 계산한다.</td>
+            <td><span class="priority-must">Must Have</span></td>
+            <td>기본요금 산정 공식 정확도 100%</td>
+          </tr>
+          <tr>
+            <td>FR-006</td>
+            <td>실시간 알림</td>
+            <td>경보 조건 발생 시 대시보드 상단에 팝업 알림을 즉시 표시한다.</td>
+            <td><span class="priority-should">Should Have</span></td>
+            <td>경보 발생 후 5초 이내 알림 표시</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>4.3 설비 부하 분산 추천 (Equipment Load Balancing)</h3>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 10%">ID</th>
+            <th style="width: 20%">기능명</th>
+            <th style="width: 45%">설명</th>
+            <th style="width: 10%">우선순위</th>
+            <th style="width: 15%">수용기준</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>FR-007</td>
+            <td>설비 가동 순서 최적화</td>
+            <td>OR-Tools를 활용하여 전기요금을 최소화할 수 있는 설비 가동 시간 및 순서를 추천한다.</td>
+            <td><span class="priority-should">Should Have</span></td>
+            <td>생산 목표 유지하며 피크 10% 이상 절감 스케줄 제시</td>
+          </tr>
+          <tr>
+            <td>FR-008</td>
+            <td>설비 ON/OFF 추천</td>
+            <td>피크 임박 시 "지금 A설비를 끄면 피크가 X% 낮아집니다" 형태의 구체적인 행동 가이드를 제공한다.</td>
+            <td><span class="priority-must">Must Have</span></td>
+            <td>권고 수용 시 실제 피크 5% 이상 감소</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>4.4 DR 수익 시뮬레이터 (DR Revenue Simulator)</h3>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 10%">ID</th>
+            <th style="width: 20%">기능명</th>
+            <th style="width: 45%">설명</th>
+            <th style="width: 10%">우선순위</th>
+            <th style="width: 15%">수용기준</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>FR-009</td>
+            <td>DR 수익 계산</td>
+            <td>사용자가 입력한 감축량(kWh)에 따라 예상되는 DR 보상금을 자동으로 계산한다.</td>
+            <td><span class="priority-should">Should Have</span></td>
+            <td>보상금 계산 공식 정확도 100%</td>
+          </tr>
+          <tr>
+            <td>FR-010</td>
+            <td>1회/월/연 수익 예상</td>
+            <td>DR 1회 참여 시 수익뿐만 아니라 월 15회 참여 가정 시, 연간 누적 예상 수익을 계산하여 표시한다.</td>
+            <td><span class="priority-should">Should Have</span></td>
+            <td>기간별 수익 추정값 표시</td>
+          </tr>
+          <tr>
+            <td>FR-011</td>
+            <td>SMP 연동 (로드맵)</td>
+            <td>전력거래소 SMP API를 연동하여 실시간 시장 가격을 반영한 정교한 수익 계산을 제공한다.</td>
+            <td><span class="priority-nice">Nice to Have</span></td>
+            <td>Phase 2에서 구현</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>4.5 데이터 관리 (Data Management)</h3>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 10%">ID</th>
+            <th style="width: 20%">기능명</th>
+            <th style="width: 45%">설명</th>
+            <th style="width: 10%">우선순위</th>
+            <th style="width: 15%">수용기준</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>FR-012</td>
+            <td>CSV 업로드</td>
+            <td>KAMP 데이터셋 형식의 CSV 파일을 사용자가 직접 업로드할 수 있는 기능을 제공한다.</td>
+            <td><span class="priority-must">Must Have</span></td>
+            <td>6,000행 이상 파일 업로드 3초 이내</td>
+          </tr>
+          <tr>
+            <td>FR-013</td>
+            <td>데이터 전처리</td>
+            <td>업로드된 데이터의 결측치 처리, 이상값 제거, 파생변수 생성 등 전처리 작업을 자동 수행한다.</td>
+            <td><span class="priority-must">Must Have</span></td>
+            <td>결측치 0개, 이상값 자동 제거 완료</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 5. 비기능 요구사항 -->
+    <div id="section5" class="page-break">
+      <h2>5. 비기능 요구사항 (Non-Functional Requirements)</h2>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 10%">ID</th>
+            <th style="width: 15%">카테고리</th>
+            <th style="width: 45%">요구사항</th>
+            <th style="width: 30%">수용기준</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>NFR-001</td>
+            <td>성능</td>
+            <td>예측 응답시간</td>
+            <td>예측 요청 후 3초 이내 결과 반환</td>
+          </tr>
+          <tr>
+            <td>NFR-002</td>
+            <td>성능</td>
+            <td>대시보드 로딩</td>
+            <td>페이지 초기 로딩 5초 이내 완료</td>
+          </tr>
+          <tr>
+            <td>NFR-003</td>
+            <td>사용성</td>
+            <td>직관적 UI</td>
+            <td>기술 비전문가도 10분 이내 사용법 숙지 가능</td>
+          </tr>
+          <tr>
+            <td>NFR-004</td>
+            <td>사용성</td>
+            <td>다국어 지원</td>
+            <td>한국어 UI 기본 지원 (영어는 로드맵)</td>
+          </tr>
+          <tr>
+            <td>NFR-005</td>
+            <td>접근성</td>
+            <td>무료 사용</td>
+            <td>오픈소스 기반으로 라이선스 비용 0원</td>
+          </tr>
+          <tr>
+            <td>NFR-006</td>
+            <td>접근성</td>
+            <td>하드웨어 불필요</td>
+            <td>CSV 파일만으로 즉시 사용 가능, 센서 설치 불필요</td>
+          </tr>
+          <tr>
+            <td>NFR-007</td>
+            <td>확장성</td>
+            <td>다공장 지원</td>
+            <td>Phase 2에서 여러 공장 데이터 통합 모니터링 지원</td>
+          </tr>
+          <tr>
+            <td>NFR-008</td>
+            <td>호환성</td>
+            <td>브라우저 지원</td>
+            <td>Chrome, Edge, Safari 최신 버전 지원</td>
+          </tr>
+          <tr>
+            <td>NFR-009</td>
+            <td>보안</td>
+            <td>데이터 보안</td>
+            <td>CSV 파일 로컬 처리 원칙, 외부 서버 전송 없음</td>
+          </tr>
+          <tr>
+            <td>NFR-010</td>
+            <td>유지보수</td>
+            <td>모델 재학습</td>
+            <td>월 1회 또는 분기 1회 모델 재학습 가능 구조</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 6. 데이터 요구사항 -->
+    <div id="section6" class="page-break">
+      <h2>6. 데이터 요구사항</h2>
+
+      <h3>6.1 입력 데이터 (Input Data)</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>컬럼명</th>
+            <th>타입</th>
+            <th>단위</th>
+            <th>설명</th>
+            <th>예시</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>날짜</td>
+            <td>int64</td>
+            <td>YYYYMMDD</td>
+            <td>측정 날짜</td>
+            <td>20210101</td>
+          </tr>
+          <tr>
+            <td>시간</td>
+            <td>int64</td>
+            <td>0~23</td>
+            <td>측정 시간</td>
+            <td>11</td>
+          </tr>
+          <tr>
+            <td>15분/30분/45분/60분</td>
+            <td>int64</td>
+            <td>kWh</td>
+            <td>15분 간격 전력 사용량</td>
+            <td>90, 92, 95, 95</td>
+          </tr>
+          <tr>
+            <td>평균</td>
+            <td>int64</td>
+            <td>kWh</td>
+            <td>해당 시간 평균 전력</td>
+            <td>93</td>
+          </tr>
+          <tr>
+            <td>생산량</td>
+            <td>int64</td>
+            <td>개</td>
+            <td>시간당 생산 개수</td>
+            <td>2429</td>
+          </tr>
+          <tr>
+            <td>기온</td>
+            <td>float64</td>
+            <td>°C</td>
+            <td>외기 온도</td>
+            <td>31.0</td>
+          </tr>
+          <tr>
+            <td>풍속</td>
+            <td>float64</td>
+            <td>m/s</td>
+            <td>풍속</td>
+            <td>1.5</td>
+          </tr>
+          <tr>
+            <td>습도</td>
+            <td>int64</td>
+            <td>%</td>
+            <td>상대습도</td>
+            <td>71</td>
+          </tr>
+          <tr>
+            <td>강수량</td>
+            <td>float64</td>
+            <td>mm</td>
+            <td>강수량</td>
+            <td>0.0</td>
+          </tr>
+          <tr>
+            <td>전기요금(계절)</td>
+            <td>float64</td>
+            <td>원/kWh</td>
+            <td>계절별 전기요금 단가</td>
+            <td>167.2</td>
+          </tr>
+          <tr>
+            <td>공장인원</td>
+            <td>float64</td>
+            <td>명</td>
+            <td>근무 인원</td>
+            <td>2.93</td>
+          </tr>
+          <tr>
+            <td>인건비</td>
+            <td>float64</td>
+            <td>원</td>
+            <td>인건비</td>
+            <td>-</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>6.2 출력 데이터 (Output Data)</h3>
+      <ul>
+        <li><strong>예측 전력량:</strong> float (kWh) - 향후 1~4시간 예측값</li>
+        <li><strong>피크 위험도:</strong> string - "80% 주의 / 90% 위험 / 95% 초과"</li>
+        <li><strong>절감 예상액:</strong> int (원) - 월간/연간 절감 가능 금액</li>
+        <li><strong>DR 수익 예상:</strong> int (원) - 1회/월/연 DR 참여 시 수익</li>
+        <li><strong>추천 설비 목록:</strong> list - "에어컨 2대, 컴프레서 1대" 등</li>
+      </ul>
+    </div>
+
+    <!-- 7. 시스템 제약사항 -->
+    <div id="section7">
+      <h2>7. 시스템 제약사항</h2>
+      <ul>
+        <li><strong>데이터 제약:</strong> KAMP 데이터셋 형식(18개 컬럼, 15분 단위)을 준수해야 함.</li>
+        <li><strong>기술 제약:</strong> Python 3.8 이상, Streamlit 1.0 이상 환경에서 구동되어야 함.</li>
+        <li><strong>하드웨어 제약:</strong> 최소 사양으로 CPU 4코어, RAM 8GB 이상 권장 (GPU 불필요).</li>
+        <li><strong>시간 제약:</strong> 실시간 센서 데이터 연동이 불가하므로 CSV 기반 배치 처리 방식을 따름.</li>
+        <li><strong>비용 제약:</strong> 유료 API 사용이 불가하며, SMP 연동 등 비용 발생 기능은 Phase 2로 미룸.</li>
+      </ul>
+    </div>
+
+    <!-- 8. 우선순위 매트릭스 -->
+    <div id="section8" class="page-break">
+      <h2>8. 우선순위 매트릭스 (MoSCoW)</h2>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 20%">우선순위</th>
+            <th style="width: 15%">기능 ID</th>
+            <th style="width: 65%">기능명</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Must Have -->
+          <tr>
+            <td rowspan="7" style="
+                background-color: var(--must-have-bg);
+                color: var(--must-have-text);
+                font-weight: bold;
+                vertical-align: middle;
+                text-align: center;
+              ">
+              Must Have<br>(PoC 필수)
+            </td>
+            <td>FR-001</td>
+            <td>시간별 전력 사용량 예측</td>
+          </tr>
+          <tr>
+            <td>FR-002</td>
+            <td>다중 모델 비교</td>
+          </tr>
+          <tr>
+            <td>FR-004</td>
+            <td>3단계 피크 경보</td>
+          </tr>
+          <tr>
+            <td>FR-005</td>
+            <td>절감액 자동 계산</td>
+          </tr>
+          <tr>
+            <td>FR-008</td>
+            <td>설비 ON/OFF 추천</td>
+          </tr>
+          <tr>
+            <td>FR-012</td>
+            <td>CSV 업로드</td>
+          </tr>
+          <tr>
+            <td>FR-013</td>
+            <td>데이터 전처리</td>
+          </tr>
+
+          <!-- Should Have -->
+          <tr>
+            <td rowspan="5" style="
+                background-color: var(--should-have-bg);
+                color: var(--should-have-text);
+                font-weight: bold;
+                vertical-align: middle;
+                text-align: center;
+              ">
+              Should Have<br>(Phase 1 권장)
+            </td>
+            <td>FR-003</td>
+            <td>예측 결과 시각화</td>
+          </tr>
+          <tr>
+            <td>FR-006</td>
+            <td>실시간 알림</td>
+          </tr>
+          <tr>
+            <td>FR-007</td>
+            <td>설비 가동 순서 최적화</td>
+          </tr>
+          <tr>
+            <td>FR-009</td>
+            <td>DR 수익 계산</td>
+          </tr>
+          <tr>
+            <td>FR-010</td>
+            <td>1회/월/연 수익 예상</td>
+          </tr>
+
+          <!-- Nice to Have -->
+          <tr>
+            <td rowspan="3" style="
+                background-color: var(--nice-to-have-bg);
+                color: var(--nice-to-have-text);
+                font-weight: bold;
+                vertical-align: middle;
+                text-align: center;
+              ">
+              Nice to Have<br>(Phase 2 로드맵)
+            </td>
+            <td>FR-011</td>
+            <td>SMP 연동</td>
+          </tr>
+          <tr>
+            <td>NFR-007</td>
+            <td>다공장 지원</td>
+          </tr>
+          <tr>
+            <td>NFR-004</td>
+            <td>영어 UI</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 9. 변경 이력 -->
+    <div id="section9">
+      <h2>9. 변경 이력</h2>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 15%">버전</th>
+            <th style="width: 20%">날짜</th>
+            <th style="width: 20%">작성자</th>
+            <th style="width: 45%">변경 내용</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1.0</td>
+            <td>2026-03-16</td>
+            <td>프로젝트팀</td>
+            <td>초안 작성</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  
+
+</body></html>

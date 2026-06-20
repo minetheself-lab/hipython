@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S3 파일 목록</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; background: #f5f5f5; }
+        h1 { color: #333; border-bottom: 3px solid #007bff; padding-bottom: 10px; }
+        .files { background: white; border-radius: 5px; padding: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .file { padding: 12px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .file:hover { background: #f0f8ff; }
+        .file:last-child { border-bottom: none; }
+        a { color: #007bff; text-decoration: none; font-size: 16px; }
+        a:hover { text-decoration: underline; }
+        .loading { text-align: center; padding: 40px; color: #666; }
+        .error { background: #fff3cd; border: 1px solid #ffc107; padding: 15px; border-radius: 5px; color: #856404; }
+        .success { background: #d4edda; border: 1px solid #28a745; padding: 10px 15px; border-radius: 5px; color: #155724; margin-bottom: 15px; }
+        .upload-section { background: white; border-radius: 5px; padding: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .upload-section h2 { color: #333; margin-top: 0; font-size: 18px; }
+        .upload-area { border: 2px dashed #007bff; border-radius: 8px; padding: 30px; text-align: center; cursor: pointer; transition: background 0.2s; color: #666; }
+        .upload-area:hover, .upload-area.dragover { background: #e8f4ff; }
+        .upload-area input[type="file"] { display: none; }
+        .upload-area .icon { font-size: 40px; display: block; margin-bottom: 8px; }
+        .btn { display: inline-block; padding: 8px 18px; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: bold; transition: opacity 0.2s; }
+        .btn:hover { opacity: 0.85; }
+        .btn-primary { background: #007bff; color: white; margin-top: 12px; }
+        .btn-danger { background: #dc3545; color: white; padding: 5px 12px; font-size: 13px; }
+        .btn:disabled { background: #aaa; cursor: not-allowed; opacity: 0.7; }
+        .preview-wrap { margin-top: 12px; display: none; }
+        .preview-wrap img { max-height: 120px; border-radius: 4px; border: 1px solid #ddd; }
+        .progress-bar-wrap { margin-top: 12px; display: none; }
+        .progress-bar-bg { background: #e9ecef; border-radius: 4px; height: 8px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; background: #007bff; width: 0%; transition: width 0.3s; }
+        #statusMsg { margin-top: 10px; font-size: 14px; min-height: 20px; }
+        .msg-success { color: #155724; }
+        .msg-error { color: #721c24; }
+        .msg-info { color: #0c5460; }
+    </style>
+</head>
+<body>
+    <h1>📁 S3 버킷 파일 목록</h1>
+    <p style="color: #666;">버킷: dev-insta-uploaded-files-01</p>
+    <div class="upload-section">
+        <h2>📤 이미지 업로드</h2>
+        <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+            <span class="icon">🖼️</span>
+            <p>클릭하거나 이미지를 드래그하여 업로드</p>
+            <p style="font-size:13px; color:#999;">JPG, PNG, GIF, WEBP 지원</p>
+            <input type="file" id="fileInput" accept="image/*" onchange="onFileSelected(event)">
+        </div>
+        <div class="preview-wrap" id="previewWrap">
+            <img id="previewImg" src="" alt="미리보기">
+            <p id="selectedFileName" style="font-size:13px; color:#555; margin:6px 0 0;"></p>
+        </div>
+        <div class="progress-bar-wrap" id="progressWrap">
+            <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill"></div></div>
+        </div>
+        <div><button class="btn btn-primary" id="uploadBtn" onclick="uploadImage()" disabled>업로드</button></div>
+        <div id="statusMsg"></div>
+    </div>
+    <div class="files" id="fileList">
+        <div class="loading">파일 목록을 불러오는 중...</div>
+    </div>
+    <script>
+        const API_BASE = 'http://43.200.220.199:8000';
+        const bucket = 'dev-insta-uploaded-files-09';
+        const region = 'ap-northeast-2';
+        const bucketUrl = `https://${bucket}.s3.${region}.amazonaws.com`;
+        let selectedFile = null;
+
+        function onFileSelected(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            selectedFile = file;
+            const reader = new FileReader();
+            reader.onload = e => {
+                document.getElementById('previewImg').src = e.target.result;
+                document.getElementById('previewWrap').style.display = 'block';
+                document.getElementById('selectedFileName').textContent = `📎 ${file.name} (${(file.size/1024).toFixed(1)} KB)`;
+            };
+            reader.readAsDataURL(file);
+            document.getElementById('uploadBtn').disabled = false;
+            setStatus('', '');
+        }
+
+        const uploadArea = document.getElementById('uploadArea');
+        uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+        uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+        uploadArea.addEventListener('drop', e => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                onFileSelected({ target: { files: [file] } });
+            } else {
+                setStatus('이미지 파일만 업로드할 수 있습니다.', 'error');
+            }
+        });
+
+        function setStatus(msg, type) {
+            const el = document.getElementById('statusMsg');
+            el.textContent = msg;
+            el.className = type === 'success' ? 'msg-success' : type === 'error' ? 'msg-error' : 'msg-info';
+        }
+
+        async function uploadImage() {
+            if (!selectedFile) return;
+            const btn = document.getElementById('uploadBtn');
+            btn.disabled = true;
+            setStatus('업로드 중...', 'info');
+            const progressWrap = document.getElementById('progressWrap');
+            const progressFill = document.getElementById('progressFill');
+            progressWrap.style.display = 'block';
+            progressFill.style.width = '30%';
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            try {
+                const res = await fetch(`${API_BASE}/images`, { method: 'POST', body: formData });
+                progressFill.style.width = '100%';
+                if (!res.ok) { const err = await res.text(); throw new Error(`서버 오류 (${res.status}): ${err}`); }
+                const data = await res.json();
+                setStatus(`✅ 업로드 완료: ${data.filename ?? selectedFile.name}`, 'success');
+                selectedFile = null;
+                document.getElementById('fileInput').value = '';
+                document.getElementById('previewWrap').style.display = 'none';
+                setTimeout(() => { progressWrap.style.display = 'none'; progressFill.style.width = '0%'; }, 800);
+                await loadFiles();
+            } catch (error) {
+                console.error('업로드 오류:', error);
+                setStatus(`❌ ${error.message}`, 'error');
+                progressFill.style.width = '0%';
+                btn.disabled = false;
+            }
+        }
+
+        async function deleteImage(filename) {
+            if (!confirm(`"${filename}" 파일을 삭제하시겠습니까?`)) return;
+            setStatus(`삭제 중: ${filename}`, 'info');
+            try {
+                const res = await fetch(`${API_BASE}/images/${encodeURIComponent(filename)}`, { method: 'DELETE' });
+                if (!res.ok) { const err = await res.text(); throw new Error(`삭제 실패 (${res.status}): ${err}`); }
+                setStatus(`✅ 삭제 완료: ${filename}`, 'success');
+                await loadFiles();
+            } catch (error) {
+                console.error('삭제 오류:', error);
+                setStatus(`❌ ${error.message}`, 'error');
+            }
+        }
+
+        async function loadFiles() {
+            document.getElementById('fileList').innerHTML = '<div class="loading">파일 목록을 불러오는 중...</div>';
+            try {
+                const response = await fetch(`${bucketUrl}?list-type=2`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                const text = await response.text();
+                const parser = new DOMParser();
+                const xml = parser.parseFromString(text, 'text/xml');
+                const files = xml.getElementsByTagName('Contents');
+                if (files.length === 0) {
+                    document.getElementById('fileList').innerHTML = '<div class="loading">📭 버킷이 비어있습니다.</div>';
+                    return;
+                }
+                let html = '<div class="success">✅ 파일 목록을 성공적으로 불러왔습니다!</div>';
+                for (let file of files) {
+                    const name = file.getElementsByTagName('Key')[0].textContent;
+                    const url = `${bucketUrl}/${name}`;
+                    let icon = '📄';
+                    if (name.match(/\.(jpg|jpeg|png|gif|webp)$/i)) icon = '🖼️';
+                    else if (name.match(/\.(txt|md)$/i)) icon = '📝';
+                    else if (name.match(/\.(json|xml)$/i)) icon = '📋';
+                    else if (name.match(/\.(html|htm)$/i)) icon = '🌐';
+                    const isImage = name.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+                    html += `<div class="file"><a href="${url}" target="_blank">${icon} ${name}</a>${isImage ? `<button class="btn btn-danger" onclick="deleteImage('${name}')">🗑️ 삭제</button>` : ''}</div>`;
+                }
+                document.getElementById('fileList').innerHTML = html;
+            } catch (error) {
+                document.getElementById('fileList').innerHTML = `<div class="error"><strong>❌ 오류 발생:</strong> ${error.message}<br><br><strong>확인 사항:</strong><br>• F12를 눌러 콘솔 확인<br>• 버킷 정책에 s3:ListBucket 권한 있는지 확인<br>• CORS 설정 확인</div>`;
+            }
+        }
+        loadFiles();
+    </script>
+</body>
+</html>

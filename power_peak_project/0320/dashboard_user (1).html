@@ -1,0 +1,2038 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>공장 전력 피크 예측 대시보드</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root {
+  --bg: #F4F6F9;
+  --bg2: #FFFFFF;
+  --bg3: #F8FAFC;
+  --border: rgba(0,0,0,0.08);
+  --border2: rgba(0,0,0,0.15);
+  --text: #1E293B;
+  --text2: #475569;
+  --text3: #94A3B8;
+  --blue: #2563EB;
+  --blue-dark: #1D4ED8;
+  --blue-bg: rgba(37,99,235,0.08);
+  --green: #059669;
+  --green-bg: rgba(5,150,105,0.08);
+  --yellow: #D97706;
+  --yellow-bg: rgba(217,119,6,0.08);
+  --orange: #EA580C;
+  --orange-bg: rgba(234,88,12,0.08);
+  --red: #DC2626;
+  --red-bg: rgba(220,38,38,0.08);
+  --purple: #7C3AED;
+  --sidebar-w: 180px;
+  --header-h: 52px;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: 'Noto Sans KR', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+/* ── 헤더 ── */
+.header {
+  position: fixed; top:0; left:0; right:0; z-index:100;
+  height: var(--header-h);
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 20px;
+  gap: 12px;
+}
+.header-logo {
+  background: var(--blue-dark);
+  color: white;
+  font-weight: 700; font-size: 13px;
+  padding: 4px 9px; border-radius: 6px;
+  letter-spacing: 0.5px;
+}
+.header-title { font-size: 14px; font-weight: 500; color: var(--text); }
+.header-badge {
+  margin-left: auto;
+  font-size: 11px; color: var(--text3);
+}
+
+/* ── 사이드바 ── */
+.sidebar {
+  position: fixed;
+  top: var(--header-h); left: 0; bottom: 0;
+  width: var(--sidebar-w);
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  padding: 16px 0;
+  overflow-y: auto;
+  z-index: 90;
+}
+.sidebar-section { padding: 0 12px; margin-bottom: 4px; }
+.sidebar-label {
+  font-size: 11px; font-weight: 500;
+  color: var(--text3); text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 8px 8px 4px;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 10px; border-radius: 6px;
+  cursor: pointer; transition: all 0.15s;
+  color: var(--text2); font-size: 13px;
+  font-weight: 400;
+  user-select: none;
+}
+.nav-item:hover { background: var(--bg3); color: var(--text); }
+.nav-item.active { background: var(--blue-bg); color: var(--blue); font-weight: 500; }
+.nav-icon { font-size: 15px; width: 18px; text-align: center; }
+
+.sidebar-divider { border: none; border-top: 1px solid var(--border); margin: 10px 12px; }
+
+.sidebar-input { padding: 12px 12px 0; }
+.sidebar-input-title { font-size: 12px; font-weight: 500; color: var(--text2); margin-bottom: 10px; }
+
+.form-group { margin-bottom: 10px; }
+.form-label { font-size: 11px; color: var(--text3); margin-bottom: 4px; display:block; }
+.form-select, .form-input {
+  width: 100%; background: var(--bg3);
+  border: 1px solid var(--border2);
+  color: var(--text); border-radius: 6px;
+  padding: 6px 8px; font-size: 12px;
+  font-family: 'Noto Sans KR', sans-serif;
+  appearance: none; outline: none;
+  transition: border 0.15s;
+}
+.form-select:focus, .form-input:focus { border-color: var(--blue); }
+.form-range {
+  width: 100%; accent-color: var(--blue);
+  cursor: pointer; margin-top: 2px;
+}
+.range-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px; color: var(--blue);
+  float: right; margin-top: -2px;
+}
+.form-radio-group { display: flex; gap: 6px; flex-wrap: wrap; }
+.form-radio {
+  flex: 1; text-align: center;
+  padding: 5px 8px; border-radius: 5px;
+  border: 1px solid var(--border2);
+  cursor: pointer; font-size: 11px;
+  transition: all 0.15s; color: var(--text2);
+}
+.form-radio.active { background: var(--blue-bg); border-color: var(--blue); color: var(--blue); }
+
+/* ── 메인 콘텐츠 ── */
+.main {
+  margin-left: var(--sidebar-w);
+  margin-top: var(--header-h);
+  padding: 24px;
+  min-height: calc(100vh - var(--header-h));
+}
+
+.page { display: none; }
+.page.active { display: block; }
+
+.page-title { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+.page-caption { font-size: 12px; color: var(--text3); margin-bottom: 20px; }
+
+/* ── 경보 배너 ── */
+.alert-banner {
+  padding: 12px 16px; border-radius: 8px;
+  margin-bottom: 16px; font-size: 13px;
+  display: flex; align-items: center; gap: 10px;
+  border: 1px solid;
+}
+.alert-danger  { background: var(--red-bg);    border-color: rgba(255,123,114,0.3); color: var(--red); }
+.alert-warning { background: var(--yellow-bg); border-color: rgba(210,153,34,0.3);  color: var(--yellow); }
+.alert-success { background: var(--green-bg);  border-color: rgba(63,185,80,0.3);   color: var(--green); }
+.alert-info    { background: var(--blue-bg);   border-color: rgba(88,166,255,0.3);  color: var(--blue); }
+
+/* ── KPI 카드 ── */
+.kpi-grid { display: grid; gap: 14px; margin-bottom: 20px; }
+.kpi-grid-4 { grid-template-columns: repeat(4, 1fr); }
+.kpi-grid-3 { grid-template-columns: repeat(3, 1fr); }
+.kpi-grid-2 { grid-template-columns: repeat(2, 1fr); }
+
+.kpi-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  transition: border 0.2s;
+}
+.kpi-card:hover { border-color: var(--border2); }
+.kpi-label { font-size: 12px; color: var(--text3); margin-bottom: 6px; }
+.kpi-value {
+  font-size: 26px; font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text); line-height: 1.2;
+}
+.kpi-value.green  { color: var(--green); }
+.kpi-value.blue   { color: var(--blue); }
+.kpi-value.yellow { color: var(--yellow); }
+.kpi-value.red    { color: var(--red); }
+.kpi-value.orange { color: var(--orange); }
+.kpi-delta {
+  font-size: 11px; margin-top: 5px;
+  display: flex; align-items: center; gap: 4px;
+}
+.kpi-delta.up      { color: var(--green); }
+.kpi-delta.down    { color: var(--red); }
+.kpi-delta.neutral { color: var(--text3); }
+
+/* ── 차트 카드 ── */
+.chart-grid { display: grid; gap: 14px; margin-bottom: 20px; }
+.chart-grid-2 { grid-template-columns: 1fr 1fr; }
+.chart-grid-1 { grid-template-columns: 1fr; }
+
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px 20px;
+}
+.card-title { font-size: 14px; font-weight: 500; margin-bottom: 14px; color: var(--text); }
+.card-caption { font-size: 11px; color: var(--text3); margin-top: 8px; }
+.chart-wrap { position: relative; }
+
+.divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+/* ── 테이블 ── */
+.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.data-table th {
+  text-align: left; padding: 8px 12px;
+  font-size: 11px; font-weight: 500;
+  color: var(--text3); text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border);
+}
+.data-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text2);
+}
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tr:hover td { background: var(--bg3); color: var(--text); }
+
+/* ── 뱃지 ── */
+.badge {
+  display: inline-block; padding: 2px 8px;
+  border-radius: 12px; font-size: 11px; font-weight: 500;
+}
+.badge-green  { background: var(--green-bg);  color: var(--green); }
+.badge-yellow { background: var(--yellow-bg); color: var(--yellow); }
+.badge-red    { background: var(--red-bg);    color: var(--red); }
+.badge-blue   { background: var(--blue-bg);   color: var(--blue); }
+.badge-orange { background: var(--orange-bg); color: var(--orange); }
+
+/* ── 버튼 ── */
+.btn {
+  padding: 8px 16px; border-radius: 6px;
+  font-size: 13px; font-weight: 500;
+  cursor: pointer; border: none;
+  transition: all 0.15s; outline: none;
+  font-family: 'Noto Sans KR', sans-serif;
+}
+.btn-primary { background: var(--blue-dark); color: white; }
+.btn-primary:hover { background: var(--blue); }
+.btn-outline {
+  background: transparent; color: var(--text2);
+  border: 1px solid var(--border2);
+}
+.btn-outline:hover { background: var(--bg3); color: var(--text); }
+.btn-full { width: 100%; padding: 10px; }
+.btn-green { background: #238636; color: white; }
+.btn-green:hover { background: var(--green); }
+
+/* ── 인풋 그룹 ── */
+.input-row { display: grid; gap: 12px; margin-bottom: 14px; }
+.input-row-3 { grid-template-columns: 1fr 1fr 1fr; }
+.input-row-2 { grid-template-columns: 1fr 1fr; }
+
+/* ── 슬라이더 박스 ── */
+.slider-box {
+  background: var(--bg3); border-radius: 8px;
+  padding: 14px 16px; margin-bottom: 12px;
+}
+.slider-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.slider-label { font-size: 13px; color: var(--text2); }
+.slider-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px; font-weight: 600; color: var(--blue);
+}
+
+/* ── 결과 패널 ── */
+.result-panel {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 8px; padding: 16px;
+}
+.result-row {
+  display: flex; justify-content: space-between;
+  align-items: center; padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.result-row:last-child { border-bottom: none; }
+.result-key { color: var(--text3); }
+.result-val { color: var(--text); font-weight: 500; font-family: 'JetBrains Mono', monospace; }
+.result-val.highlight { color: var(--green); font-size: 16px; }
+
+/* ── 홈 메뉴 카드 ── */
+.menu-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-top: 20px; }
+.menu-card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 20px 16px;
+  transition: all 0.2s; cursor: pointer;
+}
+.menu-card:hover { border-color: var(--blue); transform: translateY(-2px); }
+.menu-card-icon { font-size: 24px; margin-bottom: 10px; }
+.menu-card-title { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+.menu-card-items { font-size: 12px; color: var(--text3); line-height: 2; }
+
+/* ── DR 안내 박스 ── */
+.info-box {
+  background: rgba(88,166,255,0.07);
+  border: 1px solid rgba(88,166,255,0.2);
+  border-radius: 8px; padding: 14px 16px;
+  margin-bottom: 16px; font-size: 13px;
+  color: var(--text2); line-height: 1.8;
+}
+.info-box strong { color: var(--blue); }
+
+/* ── 태그 ── */
+.tag-confirmed { color: var(--green); font-size: 11px; }
+.tag-estimate  { color: var(--yellow); font-size: 11px; }
+
+/* ── 반응형 ── */
+@media (max-width: 1100px) {
+  .kpi-grid-4 { grid-template-columns: repeat(2,1fr); }
+  .chart-grid-2 { grid-template-columns: 1fr; }
+  .menu-grid { grid-template-columns: repeat(2,1fr); }
+  .input-row-3 { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- 헤더 -->
+<header class="header">
+  <div class="header-logo">EP</div>
+  <div class="header-title">공장 전력 피크 예측 · 자원 최적화</div>
+  <div class="header-badge">올라운더팀 2026</div>
+</header>
+
+<!-- 사이드바 -->
+<aside class="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-label">메뉴</div>
+    <div class="nav-item active" id="nav-home" onclick="showPage(&#39;home&#39;)">
+      <span class="nav-icon">🏠</span> 홈
+    </div>
+    <div class="nav-item" id="nav-dashboard" onclick="showPage(&#39;dashboard&#39;)">
+      <span class="nav-icon">📊</span> 대시보드
+    </div>
+    <div class="nav-item" id="nav-analysis" onclick="showPage(&#39;analysis&#39;)">
+      <span class="nav-icon">📈</span> 전력 조회
+    </div>
+    <div class="nav-item" id="nav-dr" onclick="showPage(&#39;dr&#39;)">
+      <span class="nav-icon">🔋</span> DR 시뮬레이션
+    </div>
+    <div class="nav-item" id="nav-esg" onclick="showPage(&#39;esg&#39;)">
+      <span class="nav-icon">🌱</span> ESG 리포트
+    </div>
+  </div>
+
+</aside>
+
+<!-- 메인 콘텐츠 -->
+<main class="main">
+
+<!-- ── 홈 ── -->
+<div class="page active" id="page-home">
+  <div class="page-title">EP 에너지 피크 예측 · 자원 최적화</div>
+  <div class="page-caption">제조 공장 전력 피크 예측 및 DR 경제성 분석 | 올라운더팀 2026</div>
+
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px;">
+    <!-- 카드 1: 현재 시각 기준 자동 계산 -->
+    <div class="kpi-card">
+      <div class="kpi-label">현재 요금 시간대 <span style="font-size:10px;color:var(--text3)" id="home-clock">17:55 기준</span></div>
+      <div class="kpi-value blue" style="font-size:18px" id="home-tou">최대부하</div>
+      <div class="kpi-delta neutral" id="home-tou-price">119.7원/kWh</div>
+    </div>
+    <!-- 카드 2: DR 시뮬레이션 결과 연동 -->
+    <div class="kpi-card">
+      <div class="kpi-label">DR 시뮬레이션 예상 수익 (1회)</div>
+      <div class="kpi-value" style="font-size:18px;color:var(--text3)" id="home-dr-reward">--</div>
+      <div class="kpi-delta neutral" id="home-dr-hint">DR 시뮬레이션 후 표시</div>
+    </div>
+    <!-- 카드 3: DR 시뮬레이션 결과 연동 -->
+    <div class="kpi-card">
+      <div class="kpi-label">DR 시뮬레이션 탄소 감축 (1회)</div>
+      <div class="kpi-value" style="font-size:18px;color:var(--text3)" id="home-dr-co2">--</div>
+      <div class="kpi-delta neutral" id="home-dr-co2-hint">DR 시뮬레이션 후 표시</div>
+    </div>
+  </div>
+
+  <div class="menu-grid">
+    <div class="menu-card" onclick="showPage(&#39;dashboard&#39;)">
+      <div class="menu-card-icon">📊</div>
+      <div class="menu-card-title" style="color:var(--blue)">대시보드</div>
+      <div class="menu-card-items">피크 위험 경보<br>실시간 KPI<br>24시간 예측<br>비용 절감 계산기</div>
+    </div>
+    <div class="menu-card" onclick="showPage(&#39;analysis&#39;)">
+      <div class="menu-card-icon">📈</div>
+      <div class="menu-card-title" style="color:var(--blue)">전력 조회</div>
+      <div class="menu-card-items">날짜별 전력 조회<br>시간대 요금 분석<br>실측 vs 예측 그래프<br>피처셋 A/B/C</div>
+    </div>
+    <div class="menu-card" onclick="showPage(&#39;dr&#39;)">
+      <div class="menu-card-icon">🔋</div>
+      <div class="menu-card-title" style="color:var(--orange)">DR 시뮬레이션</div>
+      <div class="menu-card-items">DR 발령 조건 설정<br>CBL 자동 계산<br>정산금 예측<br>ESG 탄소 감축</div>
+    </div>
+    <div class="menu-card" onclick="showPage(&#39;esg&#39;)">
+      <div class="menu-card-icon">🌱</div>
+      <div class="menu-card-title" style="color:var(--green)">ESG 리포트</div>
+      <div class="menu-card-items">GRI 302 기준<br>월별 탄소 배출<br>절감 시나리오<br>CSV 다운로드</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 대시보드 ── -->
+<div class="page" id="page-dashboard">
+  <div class="page-title">메인 대시보드</div>
+  <div class="page-caption">운영 조건을 입력하고 조회하면 피크 예측 결과가 표시됩니다.</div>
+
+  <!-- 날씨 요약 + 경보 임계값 -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+    <!-- 날씨 요약 -->
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="card-title" style="margin-bottom:0">
+          🌤 현재 날씨
+          <span style="font-size:11px;font-weight:400;color:var(--text3)" id="weather-location"></span>
+        </div>
+        <button class="btn btn-outline" style="font-size:11px;padding:4px 10px;display:none" id="weather-refresh-btn" onclick="fetchWeather()">
+          🔄 새로고침
+        </button>
+      </div>
+
+      <!-- 초기 상태: GPS 연결 전 -->
+      <div id="weather-init" style="text-align:center;padding:18px 10px;">
+        <div style="font-size:32px;margin-bottom:10px">📍</div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:14px;font-weight:500">GPS를 연결하면 현재 날씨를 불러옵니다</div>
+        <button class="btn btn-primary" style="font-size:12px;padding:8px 20px" onclick="fetchWeather()">
+          📍 GPS 연결하여 날씨 보기
+        </button>
+      </div>
+
+      <!-- 로딩 중 -->
+      <div id="weather-loading" style="text-align:center;padding:18px 10px;font-size:12px;color:var(--text3);display:none;">
+        <div style="font-size:28px;margin-bottom:8px">🌐</div>
+        GPS 위치 확인 중...
+      </div>
+
+      <!-- 날씨 데이터 (연결 후에만 표시) -->
+      <div id="weather-body" style="display:none;grid-template-columns:repeat(4,1fr);gap:10px;">
+        <div style="text-align:center">
+          <div style="font-size:22px;margin-bottom:4px">🌡️</div>
+          <div style="font-size:18px;font-weight:700;color:var(--orange)" id="w-temp">--</div>
+          <div style="font-size:11px;color:var(--text3)">온도</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:22px;margin-bottom:4px">💧</div>
+          <div style="font-size:18px;font-weight:700;color:var(--blue)" id="w-humidity">--</div>
+          <div style="font-size:11px;color:var(--text3)">습도</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:22px;margin-bottom:4px">🌬️</div>
+          <div style="font-size:18px;font-weight:700;color:var(--text2)" id="w-wind">--</div>
+          <div style="font-size:11px;color:var(--text3)">풍속</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:22px;margin-bottom:4px">🌧️</div>
+          <div style="font-size:18px;font-weight:700;color:var(--blue-dark)" id="w-rain">--</div>
+          <div style="font-size:11px;color:var(--text3)">강수량 (1h)</div>
+        </div>
+      </div>
+      <div style="font-size:10px;color:var(--text3);margin-top:10px;display:none" id="weather-note">
+        GPS 위치 기반 · OpenWeatherMap API · <span id="weather-date"></span>
+      </div>
+      <div id="weather-error" style="font-size:11px;color:var(--red);margin-top:8px;display:none"></div>
+    </div>
+    <!-- 경보 임계값 설정 -->
+    <div class="card">
+      <div class="card-title">⚙️ 경보 임계값 설정 <span style="font-size:11px;font-weight:400;color:var(--text3)">(담당자 설정)</span></div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+        <div>
+          <label class="form-label" style="color:var(--blue)">주의 (kW)</label>
+          <input type="number" class="form-input" id="th-caution" value="70" min="1" max="500" oninput="updateThresholds()" style="font-size:14px;font-weight:600;color:var(--blue)">
+        </div>
+        <div>
+          <label class="form-label" style="color:var(--yellow)">경고 (kW)</label>
+          <input type="number" class="form-input" id="th-warning" value="80" min="1" max="500" oninput="updateThresholds()" style="font-size:14px;font-weight:600;color:var(--yellow)">
+        </div>
+        <div>
+          <label class="form-label" style="color:var(--orange)">위험 (kW)</label>
+          <input type="number" class="form-input" id="th-danger" value="90" min="1" max="500" oninput="updateThresholds()" style="font-size:14px;font-weight:600;color:var(--orange)">
+        </div>
+        <div>
+          <label class="form-label" style="color:var(--red)">초과 (kW)</label>
+          <input type="number" class="form-input" id="th-critical" value="100" min="1" max="500" oninput="updateThresholds()" style="font-size:14px;font-weight:600;color:var(--red)">
+        </div>
+      </div>
+      <div style="font-size:10px;color:var(--text3);margin-top:8px">값 변경 시 경보 기준이 즉시 반영됩니다.</div>
+    </div>
+  </div>
+
+  <!-- 조건 입력 카드 -->
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-title">운영 조건 입력</div>
+    <div class="input-row input-row-3" style="margin-bottom:12px">
+      <div>
+        <label class="form-label">월</label>
+        <select class="form-select" id="sel-month">
+          <option value="1">1월</option><option value="2">2월</option>
+          <option value="3">3월</option><option value="4">4월</option>
+          <option value="5">5월</option><option value="6" selected="">6월</option>
+          <option value="7">7월</option><option value="8">8월</option>
+          <option value="9">9월</option><option value="10">10월</option>
+          <option value="11">11월</option><option value="12">12월</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label">요일</label>
+        <select class="form-select" id="sel-day">
+          <option value="0">월요일</option><option value="1">화요일</option>
+          <option value="2">수요일</option><option value="3">목요일</option>
+          <option value="4" selected="">금요일</option>
+          <option value="5">토요일</option><option value="6">일요일</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label">시간 <span class="range-val" id="val-hour">10시</span></label>
+        <input type="range" class="form-range" id="rng-hour" min="0" max="23" value="10" oninput="document.getElementById(&#39;val-hour&#39;).textContent=this.value+&#39;시&#39;">
+      </div>
+    </div>
+    <div class="input-row input-row-3">
+      <div>
+        <label class="form-label">생산량 <span class="range-val" id="val-prod">500개</span></label>
+        <input type="range" class="form-range" id="rng-prod" min="0" max="9830" value="500" step="10" oninput="document.getElementById(&#39;val-prod&#39;).textContent=parseInt(this.value).toLocaleString()+&#39;개&#39;">
+      </div>
+      <div>
+        <label class="form-label">공장 인원 <span class="range-val" id="val-worker">10명</span></label>
+        <input type="range" class="form-range" id="rng-worker" min="0" max="48" value="10" step="0.5" oninput="document.getElementById(&#39;val-worker&#39;).textContent=parseFloat(this.value).toFixed(0)+&#39;명&#39;">
+      </div>
+      <div>
+        <label class="form-label">열처리로</label>
+        <div class="form-radio-group">
+          <div class="form-radio" id="radio-furnace-off" onclick="setFurnace(0)">OFF</div>
+          <div class="form-radio active" id="radio-furnace-on" onclick="setFurnace(1)">ON</div>
+        </div>
+      </div>
+    </div>
+    <div style="text-align:right;margin-top:14px">
+      <button class="btn btn-primary" style="padding:10px 28px" onclick="updateDashboard()">
+        📊 피크 예측 조회
+      </button>
+    </div>
+  </div>
+
+  <!-- 초기 안내 (조회 전) -->
+  <div id="dashboard-empty" style="text-align: center; padding: 40px 20px; color: var(--text3); display: block;">
+    <div style="font-size:48px;margin-bottom:16px">📋</div>
+    <div style="font-size:16px;font-weight:500;margin-bottom:8px;color:var(--text2)">위에서 운영 조건을 입력하고 조회하세요</div>
+    <div style="font-size:13px">월 · 요일 · 시간 · 생산량 · 인원 · 열처리로 상태를 설정한 후<br>조회 버튼을 누르면 피크 예측 결과가 표시됩니다.</div>
+  </div>
+
+  <!-- 결과 영역 (조회 후에만 표시) -->
+  <div id="dashboard-result" style="display: none;">
+
+    <div class="alert-banner alert-danger" id="alert-banner" style="display: flex;">
+      <span id="alert-icon">🚨</span>
+      <span id="alert-text">초과 — 긴급! 생산량 400개 이하로 즉시 조정하세요. 예측 피크: 118.0kW</span>
+    </div>
+
+    <div class="kpi-grid kpi-grid-4" style="margin-bottom:20px">
+      <div class="kpi-card">
+        <div class="kpi-label">현재 전력 사용량</div>
+        <div class="kpi-value blue" id="kpi-usage">96.8 kWh</div>
+        <div class="kpi-delta neutral">kWh</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">예측 피크 (향후 1시간)</div>
+        <div class="kpi-value red" id="kpi-peak">118.0 kW</div>
+        <div class="kpi-delta" id="kpi-peak-delta">초과</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">피크 위험 등급</div>
+        <div class="kpi-value red" id="kpi-grade">초과</div>
+        <div class="kpi-delta" id="kpi-grade-delta">등급</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">예상 절감 가능액</div>
+        <div class="kpi-value green" id="kpi-saving">2,352 원</div>
+        <div class="kpi-delta neutral">피크 20% 감축 시</div>
+      </div>
+    </div>
+
+    <div class="chart-grid chart-grid-2">
+      <div class="card">
+        <div class="card-title">피크 위험 게이지</div>
+        <div class="chart-wrap" style="height:200px">
+          <canvas id="chart-gauge" width="425" height="200" style="display: block; box-sizing: border-box; height: 200px; width: 425px;"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">24시간 전력 예측</div>
+        <div class="chart-wrap" style="height:200px">
+          <canvas id="chart-24h" width="425" height="200" style="display: block; box-sizing: border-box; height: 200px; width: 425px;"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <div class="page-title" style="font-size:16px;margin-bottom:14px">운영 현황</div>
+    <div class="kpi-grid kpi-grid-4" style="margin-bottom:20px">
+      <div class="kpi-card">
+        <div class="kpi-label">생산량</div>
+        <div class="kpi-value" id="kpi-prod" style="font-size:20px">500</div>
+        <div class="kpi-delta neutral">개</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">투입 인원</div>
+        <div class="kpi-value" id="kpi-workers" style="font-size:20px">10</div>
+        <div class="kpi-delta neutral">명</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">현재 요금 시간대</div>
+        <div class="kpi-value" id="kpi-tou" style="font-size:16px">중간부하</div>
+        <div class="kpi-delta" id="kpi-tou-price">121.5 원/kWh | 중간부하 (8~10시, 12시, 18~21시)</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">현재 시간 요금</div>
+        <div class="kpi-value yellow" id="kpi-cost" style="font-size:20px">11,758 원</div>
+        <div class="kpi-delta neutral">원/시간</div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- 한전 요금 시간대 표 -->
+    <div class="page-title" style="font-size:16px;margin-bottom:10px">한전 전력량 요금표 <span style="font-size:12px;font-weight:400;color:var(--text3)">(고압A 선택I · 기본요금 6,490원/kW)</span></div>
+    <div class="card" style="margin-bottom:20px;padding:14px 16px">
+      <table class="data-table" style="font-size:12px">
+        <thead>
+          <tr>
+            <th>시간대</th><th>시간 구간</th>
+            <th style="color:var(--orange)">여름 (6~8월)</th>
+            <th style="color:var(--green)">봄가을 (3~5, 9~10월)</th>
+            <th style="color:var(--blue)">겨울 (11~2월)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr id="tou-row-0">
+            <td><span class="badge badge-blue">경부하</span></td>
+            <td style="color:var(--text3)">0~7시, 22~23시</td>
+            <td>95.7 원/kWh</td><td>95.7 원/kWh</td><td>103.1 원/kWh</td>
+          </tr>
+          <tr id="tou-row-1" style="background: var(--blue-bg); font-weight: 600;">
+            <td><span class="badge badge-yellow">중간부하</span></td>
+            <td style="color:var(--text3)">8~10시, 12시, 18~21시</td>
+            <td>121.5 원/kWh</td><td>100.5 원/kWh</td><td>120.0 원/kWh</td>
+          </tr>
+          <tr id="tou-row-2">
+            <td><span class="badge badge-red">최대부하</span></td>
+            <td style="color:var(--text3)">11시, 13~17시</td>
+            <td>155.0 원/kWh</td><td>119.7 원/kWh</td><td>149.4 원/kWh</td>
+          </tr>
+        </tbody>
+      </table>
+      <div id="tou-current-note" style="font-size:11px;color:var(--blue);margin-top:8px;font-weight:500">▶ 현재 선택: 6월 10시 → 중간부하 (121.5원/kWh) · 여름철</div>
+    </div>
+
+    <div class="page-title" style="font-size:16px;margin-bottom:14px">비용 절감 예상 계산기</div>
+    <div class="kpi-grid kpi-grid-3" style="margin-bottom:20px">
+      <div class="kpi-card">
+        <div class="kpi-label">현재 시간 요금</div>
+        <div class="kpi-value yellow" id="calc-now">11,758 원</div>
+        <div class="kpi-delta neutral">원/시간</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">피크 10% 줄이면</div>
+        <div class="kpi-value green" id="calc-10">1,176 원 절감</div>
+        <div class="kpi-delta up">↑ 절감</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">피크 20% 줄이면</div>
+        <div class="kpi-value green" id="calc-20">2,352 원 절감</div>
+        <div class="kpi-delta up">↑ 절감</div>
+      </div>
+    </div>
+
+    <div style="text-align:right;margin-top:8px">
+      <button class="btn btn-outline" onclick="resetDashboard()">↺ 초기화</button>
+      <button class="btn btn-primary" style="margin-left:8px" onclick="updateDashboard()">🔄 다시 조회</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── 전력 조회 ── -->
+<div class="page" id="page-analysis">
+  <div class="page-title">전력 조회</div>
+  <div class="page-caption">2021년 샘플 데이터 기준 | 실제 서비스 시 회사별 DB 연동 필요</div>
+
+  <!-- 피처셋 선택 -->
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-title">데이터셋 구성 선택</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:12px">어떤 데이터를 조합해서 볼지 선택하세요 (예측 정확도에 영향)</div>
+    <div class="form-radio-group" style="margin-bottom:0">
+      <div class="form-radio" id="fs-a" onclick="setFeatureSet(&#39;A&#39;)" style="flex:none;padding:10px 20px">
+        <strong>A</strong> · 날짜만
+      </div>
+      <div class="form-radio" id="fs-b" onclick="setFeatureSet(&#39;B&#39;)" style="flex:none;padding:10px 20px">
+        <strong>B</strong> · 날짜 + 날씨
+      </div>
+      <div class="form-radio active" id="fs-c" onclick="setFeatureSet(&#39;C&#39;)" style="flex:none;padding:10px 20px">
+        <strong>C</strong> · 날짜 + 날씨 + 생산량 <span class="badge badge-blue" style="margin-left:4px">전력량 데이터 포함</span>
+      </div>
+    </div>
+    <div id="fs-desc" style="margin-top:12px;font-size:12px;color:var(--blue);background:var(--blue-bg);padding:8px 12px;border-radius:6px">C셋: 날짜 + 날씨 + 생산량(전력량 데이터 포함). 가장 정밀한 예측. 생산량 데이터 연동 필요.</div>
+  </div>
+
+  <!-- 전력 추이 -->
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-title">전력 추이 — 시간대별 평균 피크</div>
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px">
+      <select class="form-select" style="width:120px" id="analysis-month" onchange="updateAnalysisChart()">
+        <option value="1">1월</option><option value="2">2월</option>
+        <option value="3">3월</option><option value="4">4월</option>
+        <option value="5">5월</option><option value="6" selected="">6월</option>
+        <option value="7">7월</option><option value="8">8월</option>
+        <option value="9">9월</option><option value="10">10월</option>
+        <option value="11">11월</option><option value="12">12월</option>
+      </select>
+      <!-- 2가지 데이터셋 토글 -->
+      <div style="display:flex;gap:8px;align-items:center;margin-left:12px">
+        <label style="font-size:12px;color:var(--text2);display:flex;align-items:center;gap:4px;cursor:pointer">
+          <input type="checkbox" id="show-actual" checked="" onchange="updateAnalysisChart()">
+          <span style="color:var(--blue)">■</span> 실제 데이터
+        </label>
+        <label style="font-size:12px;color:var(--text2);display:flex;align-items:center;gap:4px;cursor:pointer">
+          <input type="checkbox" id="show-predict" checked="" onchange="updateAnalysisChart()">
+          <span style="color:var(--orange)">■</span> 예측 데이터 (3일 이후)
+        </label>
+      </div>
+    </div>
+    <div class="chart-wrap" style="height:240px">
+      <canvas id="chart-power-trend" style="box-sizing: border-box; display: block; height: 240px; width: 921px;" width="921" height="240"></canvas>
+    </div>
+    <div class="card-caption" id="analysis-caption">파란 실선 = 실제 평균 피크(kW) | 주황 점선 = 예측 피크(kW) | 빨간 점선 = 위험기준 | 노란 점선 = 주의기준</div>
+  </div>
+
+  <!-- 과거 날짜별 조회 + 표 -->
+  <div class="card">
+    <div class="card-title">날짜별 전력 조회 <span style="font-size:11px;font-weight:400;color:var(--text3)">— 2021년 샘플 데이터</span></div>
+    <div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:16px;flex-wrap:wrap">
+      <div>
+        <label class="form-label">날짜 선택</label>
+        <input type="date" class="form-input" id="search-date" min="2021-01-01" max="2021-12-31" value="2021-06-15" style="max-width:200px">
+      </div>
+      <button class="btn btn-primary" onclick="searchData()">조회</button>
+      <div style="font-size:11px;color:var(--text3);align-self:center">
+        ※ 실제 서비스에선 회사별 전력 DB에서 해당 날짜를 조회합니다
+      </div>
+    </div>
+
+    <div id="search-result" style="display:none">
+      <div class="kpi-grid kpi-grid-4" style="margin-bottom:16px">
+        <div class="kpi-card"><div class="kpi-label">일 최대 피크</div>
+          <div class="kpi-value red" id="sr-peak">--</div><div class="kpi-delta neutral">kW</div></div>
+        <div class="kpi-card"><div class="kpi-label">일 총 사용량</div>
+          <div class="kpi-value blue" id="sr-usage">--</div><div class="kpi-delta neutral">kWh</div></div>
+        <div class="kpi-card"><div class="kpi-label">일 총 요금</div>
+          <div class="kpi-value yellow" id="sr-cost">--</div><div class="kpi-delta neutral">원 (추정)</div></div>
+        <div class="kpi-card"><div class="kpi-label">일 총 생산량</div>
+          <div class="kpi-value green" id="sr-prod">--</div><div class="kpi-delta neutral">개</div></div>
+      </div>
+      <!-- 실측 vs 예측 그래프 -->
+      <div class="chart-wrap" style="height:220px;margin-bottom:16px">
+        <canvas id="chart-search"></canvas>
+      </div>
+      <!-- 시간별 상세 표 -->
+      <div class="card-title" style="font-size:13px;margin-bottom:10px">시간별 상세 데이터</div>
+      <div style="overflow-x:auto">
+        <table class="data-table" id="search-table">
+          <thead>
+            <tr>
+              <th>시간</th>
+              <th>시간대</th>
+              <th>실제 피크 (kW)</th>
+              <th>예측 피크 (kW)</th>
+              <th>전력량 요금 (원/kWh)</th>
+              <th>시간 요금 (원)</th>
+            </tr>
+          </thead>
+          <tbody id="search-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── DR 시뮬레이션 ── -->
+<div class="page" id="page-dr">
+  <div class="page-title">DR 시뮬레이션 대시보드</div>
+  <div class="page-caption">한전 수요반응(DR) 발령 시 예상 감축량 · 정산금 · ESG 탄소 감축 효과를 시뮬레이션합니다.</div>
+
+  <!-- DR 개념 안내 -->
+  <div class="info-box">
+    <strong>DR(수요반응)이란?</strong> 한전이 전국 전력이 부족할 것 같을 때 공장에게 "전기를 잠깐 줄여주세요"라고 요청하는 제도입니다.
+    줄여준 만큼 <strong>정산금</strong>을 받고, 전기요금도 절감되며, 탄소도 줄어들어 <strong>ESG 성과</strong>로 활용할 수 있습니다.
+  </div>
+
+  <!-- 입력 방식 선택 -->
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-title">입력 방식 선택</div>
+    <div class="form-radio-group" style="margin-bottom:16px">
+      <div class="form-radio active" id="dr-mode-direct" onclick="setDRMode(&#39;direct&#39;)" style="flex:none;padding:8px 20px">✏️ 직접 입력</div>
+      <div class="form-radio" id="dr-mode-csv" onclick="setDRMode(&#39;csv&#39;)" style="flex:none;padding:8px 20px">📁 CSV 업로드</div>
+      <div class="form-radio" id="dr-mode-cbl" onclick="setDRMode(&#39;cbl&#39;)" style="flex:none;padding:8px 20px">📊 샘플 CBL</div>
+    </div>
+
+    <!-- 직접 입력 -->
+    <div id="dr-direct-section" style="display: block;">
+      <div class="input-row input-row-3">
+        <div>
+          <label class="form-label">시뮬레이션 월</label>
+          <select class="form-select" id="dr-month">
+            <option value="1">1월 (겨울)</option><option value="2">2월 (겨울)</option>
+            <option value="3">3월 (봄)</option><option value="4">4월 (봄)</option>
+            <option value="5">5월 (봄)</option><option value="6" selected="">6월 (여름)</option>
+            <option value="7">7월 (여름)</option><option value="8">8월 (여름)</option>
+            <option value="9">9월 (가을)</option><option value="10">10월 (가을)</option>
+            <option value="11">11월 (겨울)</option><option value="12">12월 (겨울)</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">DR 시작 시간</label>
+          <select class="form-select" id="dr-start">
+            <option value="9">09:00</option><option value="10">10:00</option>
+            <option value="11">11:00</option><option value="12">12:00</option>
+            <option value="13" selected="">13:00</option><option value="14">14:00</option>
+            <option value="15">15:00</option><option value="16">16:00</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">DR 종료 시간</label>
+          <select class="form-select" id="dr-end">
+            <option value="14">14:00</option><option value="15">15:00</option>
+            <option value="16" selected="">16:00</option><option value="17">17:00</option>
+            <option value="18">18:00</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="form-label">평균 전력 사용량 CBL (kWh) <span class="tag-confirmed">확정 공식 적용</span></label>
+        <input type="number" class="form-input" id="dr-cbl-direct" value="85" min="1" step="1" style="max-width:200px">
+        <div style="font-size:11px;color:var(--text3);margin-top:4px">우리 공장의 해당 시간대 평균 전력 사용량을 입력하세요.</div>
+      </div>
+    </div>
+
+    <!-- CSV 업로드 -->
+    <div id="dr-csv-section" style="display: none;">
+      <div class="info-box" style="margin-bottom:12px">
+        <strong>CSV 파일 업로드</strong>란? 우리 공장의 실제 전력 데이터를 올리면
+        한전 공식(직전 10 평일 상위 4일 평균)으로 <strong>CBL을 자동 계산</strong>합니다.<br>
+        필수 컬럼: <code style="background:rgba(37,99,235,0.1);padding:1px 5px;border-radius:3px">날짜, 시간, 평균</code>
+      </div>
+      <div style="margin-bottom:12px">
+        <label class="form-label">CSV 파일 선택</label>
+        <input type="file" id="dr-csv-file" accept=".csv" style="display:block;margin-top:4px;font-size:12px;color:var(--text2)" onchange="loadCSV()">
+      </div>
+      <div class="input-row input-row-2" style="margin-bottom:12px">
+        <div>
+          <label class="form-label">시뮬레이션 월</label>
+          <select class="form-select" id="dr-month-csv">
+            <option value="1">1월 (겨울)</option><option value="2">2월 (겨울)</option>
+            <option value="3">3월 (봄)</option><option value="4">4월 (봄)</option>
+            <option value="5">5월 (봄)</option><option value="6" selected="">6월 (여름)</option>
+            <option value="7">7월 (여름)</option><option value="8">8월 (여름)</option>
+            <option value="9">9월 (가을)</option><option value="10">10월 (가을)</option>
+            <option value="11">11월 (겨울)</option><option value="12">12월 (겨울)</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">DR 시간대</label>
+          <select class="form-select" id="dr-hour-csv">
+            <option value="10">10시</option><option value="11">11시</option>
+            <option value="12">12시</option><option value="13" selected="">13시</option>
+            <option value="14">14시</option><option value="15">15시</option>
+            <option value="16">16시</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-outline" onclick="calcCBLfromCSV()" style="margin-bottom:12px">CBL 자동 계산</button>
+      <div class="result-panel" id="csv-cbl-result" style="display:none">
+        <div class="result-row">
+          <span class="result-key">계산된 CBL <span class="tag-confirmed">(한전 공식)</span></span>
+          <span class="result-val" id="csv-cbl-val">-- kWh</span>
+        </div>
+        <div class="result-row">
+          <span class="result-key">기준</span>
+          <span class="result-val" style="font-size:11px;color:var(--text3)">직전 10 평일 상위 4일 동시간대 평균</span>
+        </div>
+        <div class="result-row">
+          <span class="result-key">분석된 데이터 행수</span>
+          <span class="result-val" id="csv-row-count">--</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- CBL 기반 계산 -->
+    <div id="dr-cbl-section" style="display:none">
+      <div class="info-box" style="margin-bottom:12px">
+        <strong>CBL(고객기준부하)</strong>이란? 한전 공식 기준으로, DR 발령 직전 10 평일 중 전력이 많았던 상위 4일의 평균값입니다.
+        아래에 월과 시간대를 선택하면 샘플 데이터 기준으로 자동 계산됩니다.
+      </div>
+      <div class="input-row input-row-3">
+        <div>
+          <label class="form-label">시뮬레이션 월</label>
+          <select class="form-select" id="dr-month-cbl">
+            <option value="1">1월 (겨울)</option><option value="2">2월 (겨울)</option>
+            <option value="3">3월 (봄)</option><option value="4">4월 (봄)</option>
+            <option value="5">5월 (봄)</option><option value="6" selected="">6월 (여름)</option>
+            <option value="7">7월 (여름)</option><option value="8">8월 (여름)</option>
+            <option value="9">9월 (가을)</option><option value="10">10월 (가을)</option>
+            <option value="11">11월 (겨울)</option><option value="12">12월 (겨울)</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">DR 시작 시간</label>
+          <select class="form-select" id="dr-start-cbl">
+            <option value="9">09:00</option><option value="10">10:00</option>
+            <option value="11">11:00</option><option value="12">12:00</option>
+            <option value="13" selected="">13:00</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">DR 종료 시간</label>
+          <select class="form-select" id="dr-end-cbl">
+            <option value="14">14:00</option><option value="15">15:00</option>
+            <option value="16" selected="">16:00</option><option value="17">17:00</option>
+          </select>
+        </div>
+      </div>
+      <div class="result-panel" style="margin-bottom:12px">
+        <div class="result-row">
+          <span class="result-key">계산된 CBL <span class="tag-confirmed">(한전 공식)</span></span>
+          <span class="result-val" id="cbl-calc-val">-- kWh</span>
+        </div>
+        <div class="result-row">
+          <span class="result-key">계산 기준</span>
+          <span class="result-val" style="font-size:11px;color:var(--text3)">직전 10 평일 상위 4일 평균</span>
+        </div>
+      </div>
+      <button class="btn btn-outline" onclick="calcCBL()" style="margin-bottom:12px">CBL 자동 계산</button>
+    </div>
+
+    <hr class="sidebar-divider" style="margin:16px 0">
+
+    <!-- 공통 파라미터 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="slider-box">
+        <div class="slider-header">
+          <span class="slider-label">DR 정산 단가 (원/kWh) <span class="tag-estimate">추정값</span></span>
+          <span class="slider-value" id="dr-price-val">300</span>
+        </div>
+        <input type="range" class="form-range" id="dr-price" min="100" max="500" value="300" step="10" oninput="document.getElementById(&#39;dr-price-val&#39;).textContent=parseInt(this.value).toLocaleString()">
+        <div style="font-size:10px;color:var(--text3)">한전 DR 계약서 확인 필요</div>
+      </div>
+      <div class="slider-box">
+        <div class="slider-header">
+          <span class="slider-label">감축 목표율 (%) <span class="tag-estimate">추정값</span></span>
+          <span class="slider-value" id="dr-reduce-val">15%</span>
+        </div>
+        <input type="range" class="form-range" id="dr-reduce" min="5" max="50" value="15" step="5" oninput="document.getElementById(&#39;dr-reduce-val&#39;).textContent=this.value+&#39;%&#39;">
+        <div style="font-size:10px;color:var(--text3)">공장마다 상이, 현장 담당자 협의 필요</div>
+      </div>
+      <div class="slider-box">
+        <div class="slider-header">
+          <span class="slider-label">월 DR 발령 횟수 <span class="tag-estimate">추정값</span></span>
+          <span class="slider-value" id="dr-count-val">2회</span>
+        </div>
+        <input type="range" class="form-range" id="dr-count" min="1" max="10" value="2" oninput="document.getElementById(&#39;dr-count-val&#39;).textContent=this.value+&#39;회&#39;">
+      </div>
+      <div class="slider-box">
+        <div class="slider-header">
+          <span class="slider-label">연간 DR 발령 월수 <span class="tag-estimate">추정값</span></span>
+          <span class="slider-value" id="dr-months-val">4개월</span>
+        </div>
+        <input type="range" class="form-range" id="dr-months" min="1" max="12" value="4" oninput="document.getElementById(&#39;dr-months-val&#39;).textContent=this.value+&#39;개월&#39;">
+      </div>
+    </div>
+
+    <button class="btn btn-primary btn-full" style="margin-top:16px" onclick="runDR()">시뮬레이션 실행</button>
+  </div>
+
+  <!-- 시뮬레이션 전 안내 -->
+  <div id="dr-empty" style="text-align:center;padding:40px 20px;color:var(--text3)">
+    <div style="font-size:48px;margin-bottom:16px">🔋</div>
+    <div style="font-size:16px;font-weight:500;margin-bottom:8px;color:var(--text2)">위에서 조건을 입력하고 시뮬레이션을 실행하세요</div>
+    <div style="font-size:13px">CBL · 감축량 · 정산금 · CO₂ 감축 결과가 표시됩니다.</div>
+  </div>
+
+  <!-- 결과 (시뮬레이션 실행 후에만 표시) -->
+  <div id="dr-result" style="display: none;">
+    <div class="kpi-grid kpi-grid-4" style="margin-bottom:20px">
+      <div class="kpi-card">
+        <div class="kpi-label">CBL (기준 전력)</div>
+        <div class="kpi-value blue" id="dr-cbl-result">--</div>
+        <div class="kpi-delta neutral">kWh <span class="tag-confirmed">한전 공식</span></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">예상 감축량</div>
+        <div class="kpi-value orange" id="dr-reduced-kwh">--</div>
+        <div class="kpi-delta neutral" id="dr-reduce-pct">--</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">DR 정산금</div>
+        <div class="kpi-value green" id="dr-settlement">--</div>
+        <div class="kpi-delta up">한전 정산</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">CO₂ 감축량</div>
+        <div class="kpi-value green" id="dr-co2">--</div>
+        <div class="kpi-delta neutral">kgCO₂ <span class="tag-confirmed">0.4781계수</span></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-title">DR 전후 전력 사용량 비교</div>
+      <div class="chart-wrap" style="height:220px">
+        <canvas id="chart-dr" height="220" style="display: block; box-sizing: border-box; height: 220px; width: 906px;" width="906"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-grid chart-grid-2" style="margin-bottom:20px">
+      <div class="card">
+        <div class="card-title">DR 전후 비교</div>
+        <div id="dr-compare-panel" class="result-panel">
+    <div class="result-row"><span class="result-key">DR 시간 전력 (전)</span><span class="result-val">255.0 kWh</span></div>
+    <div class="result-row"><span class="result-key">DR 시간 전력 (후)</span><span class="result-val" style="color:var(--green)">216.8 kWh</span></div>
+    <div class="result-row"><span class="result-key">총 감축량</span><span class="result-val" style="color:var(--orange)">38.3 kWh</span></div>
+    <div class="result-row"><span class="result-key">평균 요금 단가</span><span class="result-val">155.0 원/kWh</span></div>
+  </div>
+      </div>
+      <div class="card">
+        <div class="card-title">DR 수익 요약</div>
+        <div id="dr-benefit-panel" class="result-panel">
+    <div class="result-row"><span class="result-key">전기요금 절감액</span><span class="result-val">5,929 원</span></div>
+    <div class="result-row"><span class="result-key">DR 정산금</span><span class="result-val" style="color:var(--green)">11,475 원</span></div>
+    <div class="result-row"><span class="result-key">총 편익 (1회)</span><span class="result-val highlight">17,404 원</span></div>
+    <div class="result-row"><span class="result-key">CO₂ 감축 (1회)</span><span class="result-val" style="color:var(--green)">18.29 kg</span></div>
+  </div>
+      </div>
+    </div>
+
+    <!-- ESG 연간 효과 -->
+    <div class="card">
+      <div class="card-title">🌱 연간 ESG 탄소 감축 효과</div>
+      <div class="kpi-grid kpi-grid-3">
+        <div class="kpi-card">
+          <div class="kpi-label">연간 탄소 감축량</div>
+          <div class="kpi-value green" id="dr-annual-co2">146.3 kg</div>
+          <div class="kpi-delta neutral">kgCO₂/년</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">탄소 금액 환산</div>
+          <div class="kpi-value green" id="dr-carbon-cost">1,463 원</div>
+          <div class="kpi-delta neutral">원/년 (ETS 10,000원/톤)</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">연간 총 경제적 효과</div>
+          <div class="kpi-value green" id="dr-annual-total">139,230 원</div>
+          <div class="kpi-delta up">↑ DR 정산금 + 전기요금 절감</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── ESG 리포트 ── -->
+<div class="page" id="page-esg">
+  <div class="page-title">ESG 리포트 센터</div>
+  <div class="page-caption">GRI 302 기준 에너지 사용량 · Scope2 탄소 배출량 자동 집계 | 2021년 연간 데이터</div>
+
+  <div class="kpi-grid kpi-grid-4" style="margin-bottom:20px">
+    <div class="kpi-card">
+      <div class="kpi-label">연간 총 전력 사용량</div>
+      <div class="kpi-value blue">539,642 kWh</div>
+      <div class="kpi-delta neutral">GRI 302-1</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">연간 총 전기요금</div>
+      <div class="kpi-value yellow">8,234 만원</div>
+      <div class="kpi-delta neutral">부가세 포함</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Scope2 탄소 배출</div>
+      <div class="kpi-value green">257.9 tCO₂eq</div>
+      <div class="kpi-delta neutral">배출계수 0.4781</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">에너지 집약도</div>
+      <div class="kpi-value green">0.191 kWh/개</div>
+      <div class="kpi-delta neutral">GRI 302-3</div>
+    </div>
+  </div>
+
+  <div class="chart-grid chart-grid-2" style="margin-bottom:20px">
+    <div class="card">
+      <div class="card-title">월별 총 전력 사용량 (kWh)</div>
+      <div class="chart-wrap" style="height:220px">
+        <canvas id="chart-esg-usage" style="box-sizing: border-box; display: block; height: 220px; width: 425px;" width="425" height="220"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">월별 Scope2 탄소 배출량 (tCO₂eq)</div>
+      <div class="chart-wrap" style="height:220px">
+        <canvas id="chart-esg-co2" style="box-sizing: border-box; display: block; height: 220px; width: 425px;" width="425" height="220"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-title">피크 절감 시나리오별 ESG 성과</div>
+    <div class="slider-box" style="margin-bottom:16px">
+      <div class="slider-header">
+        <span class="slider-label">피크 감축률 (%)</span>
+        <span class="slider-value" id="esg-pct-val">10%</span>
+      </div>
+      <input type="range" class="form-range" id="esg-pct" min="5" max="30" value="10" step="5" oninput="document.getElementById(&#39;esg-pct-val&#39;).textContent=this.value+&#39;%&#39;;updateESGScenario()">
+    </div>
+    <div class="kpi-grid kpi-grid-4">
+      <div class="kpi-card">
+        <div class="kpi-label">전력 절감량</div>
+        <div class="kpi-value blue" id="esg-saved-kwh">--</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">CO₂ 감축량</div>
+        <div class="kpi-value green" id="esg-saved-co2">--</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">전기요금 절감</div>
+        <div class="kpi-value yellow" id="esg-saved-cost">--</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">소나무 환산</div>
+        <div class="kpi-value green" id="esg-trees">--</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-title">GRI 302 에너지 데이터 (월별)</div>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>월</th><th>총사용량(kWh)</th><th>Scope2(tCO₂eq)</th>
+          <th>최대피크(kW)</th><th>기본요금(원)</th><th>총비용(원)</th>
+        </tr>
+      </thead>
+      <tbody id="esg-table-body"></tbody>
+    </table>
+  </div>
+
+  <div style="display:flex;gap:12px">
+    <button class="btn btn-green" onclick="downloadCSV(&#39;monthly&#39;)">
+      월별 ESG 데이터 CSV 다운로드
+    </button>
+    <button class="btn btn-outline" onclick="downloadCSV(&#39;summary&#39;)">
+      연간 요약 ESG 리포트 CSV 다운로드
+    </button>
+  </div>
+</div>
+
+</main>
+
+<script>
+// ── 상수 ──
+// 한전 고압A 선택I 기준 (한전전기료.xlsx)
+const TOU_LABEL  = {0:"경부하", 1:"중간부하", 2:"최대부하"};
+const EMISSION   = 0.4781;  // 환경부 고시 2022
+const CARBON_PRICE = 10000; // 원/tCO2
+const BASIC_RATE = 6490;    // 기본요금 원/kW (고압A 선택I)
+
+// 계절별 요금 단가 (고압A 선택I) — 한전전기료.xlsx 확정값
+const RATE_TABLE = {
+  summer: {0:95.7,  1:121.5, 2:155.0},   // 6~8월
+  spring: {0:95.7,  1:100.5, 2:119.7},   // 3~5, 9~10월
+  winter: {0:103.1, 1:120.0, 2:149.4},   // 11~2월
+};
+
+// 담당자 설정 가능한 경보 임계값 (kW 기준)
+let THRESHOLDS = { caution:70, warning:80, danger:90, critical:100 };
+
+let furnaceState = 1;
+let charts = {};
+let drMode = 'direct';
+
+function getSeason(month) {
+  if ([6,7,8].includes(month)) return 'summer';
+  if ([11,12,1,2].includes(month)) return 'winter';
+  return 'spring';
+}
+
+// 한전전기료.xlsx 실제 시간대 구분
+// 경부하(0): 0~7시, 22~23시
+// 중간부하(1): 8~10시, 12시, 18~21시
+// 최대부하(2): 11시, 13~17시
+function getTOU(month, hour) {
+  if (hour <= 7 || hour >= 22) return 0;            // 경부하
+  if (hour === 11 || (hour >= 13 && hour <= 17)) return 2; // 최대부하
+  return 1;                                          // 중간부하
+}
+
+// 시간대 구간 설명 반환
+function getTOUBand(hour) {
+  if (hour <= 7 || hour >= 22) return '경부하 (0~7시, 22~23시)';
+  if (hour === 11 || (hour >= 13 && hour <= 17)) return '최대부하 (11시, 13~17시)';
+  return '중간부하 (8~10시, 12시, 18~21시)';
+}
+
+function estimatePeak(prod, workers, hour, furnace, month, temp) {
+  let base = 25;
+  if (prod > 0) {
+    base += Math.min(prod/500*60, 120) + workers*3;
+  } else if (furnace===1 && hour>=8 && hour<=18) {
+    base += 50 + Math.random()*20;
+  }
+  if (temp >= 28) base *= 1.07;
+  if (temp <= 2)  base *= 1.04;
+  return Math.max(0, base + (Math.random()-0.5)*8);
+}
+
+function setFurnace(val) {
+  furnaceState = val;
+  document.getElementById('radio-furnace-off').classList.toggle('active', val===0);
+  document.getElementById('radio-furnace-on').classList.toggle('active',  val===1);
+  updateDashboard();
+}
+
+function setDRMode(mode) {
+  drMode = mode;
+  document.getElementById('dr-mode-direct').classList.toggle('active', mode==='direct');
+  document.getElementById('dr-mode-csv').classList.toggle('active', mode==='csv');
+  document.getElementById('dr-mode-cbl').classList.toggle('active', mode==='cbl');
+  document.getElementById('dr-direct-section').style.display = mode==='direct'?'block':'none';
+  document.getElementById('dr-csv-section').style.display   = mode==='csv'?'block':'none';
+  document.getElementById('dr-cbl-section').style.display   = mode==='cbl'?'block':'none';
+}
+
+// ── CSV 로드 & CBL 계산 (KEPCO 공식) ──
+let csvData = [];
+
+function loadCSV() {
+  const file = document.getElementById('dr-csv-file').files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const text = e.target.result;
+    const lines = text.trim().split('\n');
+    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g,''));
+
+    // 컬럼 인덱스 찾기
+    const idxDate = headers.findIndex(h => h.includes('날짜'));
+    const idxHour = headers.findIndex(h => h.includes('시간'));
+    const idxAvg  = headers.findIndex(h => h.includes('평균'));
+
+    if (idxDate<0 || idxHour<0 || idxAvg<0) {
+      alert('CSV에 날짜, 시간, 평균 컬럼이 필요합니다.');
+      return;
+    }
+
+    csvData = [];
+    for (let i=1; i<lines.length; i++) {
+      const cols = lines[i].split(',');
+      if (cols.length < 3) continue;
+      const date = parseInt(cols[idxDate]);
+      const hour = parseInt(cols[idxHour]);
+      const avg  = parseFloat(cols[idxAvg]);
+      if (isNaN(date)||isNaN(hour)||isNaN(avg)) continue;
+      if (hour < 0 || hour > 23) continue;  // 시간 이상값 제거
+      csvData.push({ date, hour, avg });
+    }
+    document.getElementById('csv-row-count').textContent = csvData.length + '행';
+    alert(`CSV 로드 완료! ${csvData.length}행의 데이터를 읽었습니다.`);
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function calcCBLfromCSV() {
+  if (csvData.length === 0) {
+    alert('먼저 CSV 파일을 업로드해주세요.');
+    return;
+  }
+  const month  = parseInt(document.getElementById('dr-month-csv').value);
+  const hour   = parseInt(document.getElementById('dr-hour-csv').value);
+
+  // 해당 월 + 해당 시간 필터
+  const filtered = csvData.filter(r => {
+    const m = Math.floor(r.date / 100) % 100;
+    return m === month && r.hour === hour;
+  });
+
+  if (filtered.length < 2) {
+    alert('해당 월/시간 데이터가 부족합니다 (최소 2일 필요).');
+    return;
+  }
+
+  // 날짜별 평균 계산
+  const byDate = {};
+  filtered.forEach(r => {
+    if (!byDate[r.date]) byDate[r.date] = [];
+    byDate[r.date].push(r.avg);
+  });
+  const dailyAvgs = Object.entries(byDate).map(([date, vals]) => ({
+    date: parseInt(date),
+    avg: vals.reduce((a,b)=>a+b,0) / vals.length
+  }));
+
+  // 상위 4일 평균 (KEPCO 공식)
+  const top4 = dailyAvgs.sort((a,b) => b.avg - a.avg).slice(0, 4);
+  const cbl  = top4.reduce((s,r) => s+r.avg, 0) / top4.length;
+
+  document.getElementById('csv-cbl-val').textContent = cbl.toFixed(2) + ' kWh';
+  document.getElementById('csv-cbl-result').style.display = 'block';
+  document.getElementById('csv-row-count').textContent = csvData.length + '행';
+}
+
+function calcCBL() {
+  const month = parseInt(document.getElementById('dr-month-cbl').value);
+  // 월별 기본 CBL 샘플 (실제 데이터 기반 근사값)
+  const cblByMonth = {1:72,2:70,3:78,4:80,5:82,6:91,7:95,8:93,9:85,10:83,11:75,12:74};
+  const cbl = cblByMonth[month] + (Math.random()-0.5)*4;
+  document.getElementById('cbl-calc-val').textContent = cbl.toFixed(1)+' kWh';
+}
+
+// ── 임계값 업데이트 ──
+function updateThresholds() {
+  THRESHOLDS.caution  = parseFloat(document.getElementById('th-caution').value)  || 70;
+  THRESHOLDS.warning  = parseFloat(document.getElementById('th-warning').value)  || 80;
+  THRESHOLDS.danger   = parseFloat(document.getElementById('th-danger').value)   || 90;
+  THRESHOLDS.critical = parseFloat(document.getElementById('th-critical').value) || 100;
+}
+
+// ── 피처셋 선택 ──
+let currentFS = 'A';
+function setFeatureSet(fs) {
+  currentFS = fs;
+  ['A','B','C'].forEach(f => {
+    document.getElementById('fs-'+f.toLowerCase()).classList.toggle('active', f===fs);
+  });
+  const desc = {
+    'A': 'A셋: 날짜(월·요일·시간)만 사용. 가장 단순하지만 계절 패턴 파악 가능.',
+    'B': 'B셋: 날짜 + 날씨(온도·습도·풍속·강수량). 날씨 영향을 반영한 예측.',
+    'C': 'C셋: 날짜 + 날씨 + 생산량(전력량 데이터 포함). 가장 정밀한 예측. 생산량 데이터 연동 필요.'
+  };
+  document.getElementById('fs-desc').textContent = desc[fs];
+  updateAnalysisChart();
+}
+
+// ─────────────────────────────────────────────────
+// ── 날씨 카드 — GPS + OpenWeatherMap API 연동 ──
+// 무료 API 키 발급: https://openweathermap.org/api
+// (가입 후 API Keys 메뉴에서 발급, 무료 1,000회/일)
+// 발급 후 아래 YOUR_API_KEY 자리에 붙여 넣으세요.
+// ─────────────────────────────────────────────────
+const OWM_KEY = '7c5c0959df74824745e3716e48384963';  // ← 여기에 발급받은 키 입력
+
+function initWeatherCard() {
+  // 자동 호출 안 함 — 사용자가 "GPS 연결" 버튼 클릭 시에만 fetchWeather() 실행
+}
+
+async function fetchWeather() {
+  const errEl     = document.getElementById('weather-error');
+  const loadEl    = document.getElementById('weather-loading');
+  const initEl    = document.getElementById('weather-init');
+  const bodyEl    = document.getElementById('weather-body');
+  const noteEl    = document.getElementById('weather-note');
+  const refreshBtn= document.getElementById('weather-refresh-btn');
+
+  errEl.style.display = 'none';
+  errEl.textContent   = '';
+
+  // 초기 상태 숨기고 로딩 표시
+  initEl.style.display = 'none';
+  loadEl.style.display = 'block';
+  bodyEl.style.display = 'none';
+
+  if (!navigator.geolocation) {
+    loadEl.style.display = 'none';
+    errEl.textContent    = 'GPS를 지원하지 않는 브라우저입니다.';
+    errEl.style.display  = 'block';
+    initEl.style.display = 'block';
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    async (pos) => {
+      const lat = pos.coords.latitude.toFixed(4);
+      const lon = pos.coords.longitude.toFixed(4);
+      try {
+        const url = `https://api.openweathermap.org/data/2.5/weather`
+                  + `?lat=${lat}&lon=${lon}&appid=${OWM_KEY}&units=metric&lang=ko`;
+        const res  = await fetch(url);
+        if (!res.ok) throw new Error('API 오류 ' + res.status);
+        const data = await res.json();
+
+        const temp = data.main.temp.toFixed(1);
+        const hum  = data.main.humidity;
+        const wind = data.wind.speed.toFixed(1);
+        const rain = (data.rain?.['1h'] ?? 0).toFixed(1);
+        const city = data.name || '';
+        const desc = data.weather?.[0]?.description || '';
+
+        document.getElementById('w-temp').textContent     = temp + '°C';
+        document.getElementById('w-humidity').textContent = hum + '%';
+        document.getElementById('w-wind').textContent     = wind + ' m/s';
+        document.getElementById('w-rain').textContent     = rain + ' mm';
+        document.getElementById('weather-location').textContent = city ? ' · ' + city : '';
+
+        const now = new Date();
+        document.getElementById('weather-date').textContent =
+          `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')} 기준 · ${desc}`;
+
+        // 날씨 카드 표시 전환
+        loadEl.style.display    = 'none';
+        bodyEl.style.display    = 'grid';
+        noteEl.style.display    = 'block';
+        refreshBtn.style.display= 'block';
+
+      } catch(e) {
+        loadEl.style.display = 'none';
+        initEl.style.display = 'block';
+        errEl.textContent    = '날씨 조회 실패: ' + e.message + ' (API 키 또는 네트워크 확인)';
+        errEl.style.display  = 'block';
+      }
+    },
+    (geoErr) => {
+      loadEl.style.display = 'none';
+      initEl.style.display = 'block';
+      const msg = {
+        1: 'GPS 권한이 거부됐습니다. 브라우저 주소창 좌측 🔒 아이콘에서 위치 허용 후 다시 시도',
+        2: 'GPS 위치를 확인할 수 없습니다.',
+        3: 'GPS 응답 시간 초과.',
+      };
+      errEl.textContent   = msg[geoErr.code] || 'GPS 오류';
+      errEl.style.display = 'block';
+    },
+    { timeout: 10000 }
+  );
+}
+
+// ── 현재 TOU 행 하이라이트 ──
+function highlightTOUTable(month, hour) {
+  const tou = getTOU(month, hour);
+  const season = getSeason(month);
+  [0,1,2].forEach(i => {
+    const row = document.getElementById('tou-row-'+i);
+    if (!row) return;
+    row.style.background = i===tou ? 'var(--blue-bg)' : '';
+    row.style.fontWeight  = i===tou ? '600' : '';
+  });
+  const note = document.getElementById('tou-current-note');
+  if (note) {
+    const prices = {summer:95.7,spring:95.7,winter:103.1};
+    const p = RATE_TABLE[season][tou];
+    note.textContent = `▶ 현재 선택: ${month}월 ${hour}시 → ${TOU_LABEL[tou]} (${p}원/kWh) · ${season==='summer'?'여름':season==='winter'?'겨울':'봄가을'}철`;
+  }
+}
+
+// ── 페이지 전환 ──
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  const nav = document.getElementById('nav-'+name);
+  if (nav) nav.classList.add('active');
+  if (name==='analysis') initAnalysisCharts();
+  if (name==='esg')      initESGCharts();
+}
+
+// ── 대시보드 업데이트 ──
+function updateDashboard() {
+  const month   = parseInt(document.getElementById('sel-month').value);
+  const hour    = parseInt(document.getElementById('rng-hour').value);
+  const prod    = parseInt(document.getElementById('rng-prod').value);
+  const workers = parseFloat(document.getElementById('rng-worker').value);
+  const temp    = 22; // 기본 기온 자동 설정
+  const furnace = furnaceState;
+
+  const peak    = estimatePeak(prod, workers, hour, furnace, month, temp);
+  const lf      = prod>0?0.82:0.87;
+  const usage   = peak * lf;
+  const tou     = getTOU(month, hour);
+  const season  = getSeason(month);
+  const tPrice  = RATE_TABLE[season][tou];
+  const cost    = Math.round(usage * tPrice);
+  const co2     = usage * EMISSION;
+  const saving10= Math.round(cost * 0.10);
+  const saving20= Math.round(cost * 0.20);
+
+  let grade, gclass;
+  if      (peak < THRESHOLDS.caution)  { grade='양호'; gclass='green'; }
+  else if (peak < THRESHOLDS.warning)  { grade='주의'; gclass='blue'; }
+  else if (peak < THRESHOLDS.danger)   { grade='경고'; gclass='yellow'; }
+  else if (peak < THRESHOLDS.critical) { grade='위험'; gclass='orange'; }
+  else                                  { grade='초과'; gclass='red'; }
+
+  document.getElementById('kpi-usage').textContent      = usage.toFixed(1)+' kWh';
+  document.getElementById('kpi-peak').textContent       = peak.toFixed(1)+' kW';
+  document.getElementById('kpi-peak').className         = 'kpi-value '+gclass;
+  document.getElementById('kpi-peak-delta').textContent = grade;
+  document.getElementById('kpi-grade').textContent      = grade;
+  document.getElementById('kpi-grade').className        = 'kpi-value '+gclass;
+  document.getElementById('kpi-grade-delta').textContent= '등급';
+  document.getElementById('kpi-saving').textContent     = saving20.toLocaleString()+' 원';
+
+  document.getElementById('kpi-prod').textContent    = prod.toLocaleString();
+  document.getElementById('kpi-workers').textContent = Math.round(workers)+'';
+  document.getElementById('kpi-tou').textContent     = TOU_LABEL[tou];
+  document.getElementById('kpi-tou-price').textContent = tPrice+' 원/kWh | '+getTOUBand(hour);
+  document.getElementById('kpi-cost').textContent    = cost.toLocaleString()+' 원';
+
+  document.getElementById('calc-now').textContent  = cost.toLocaleString()+' 원';
+  document.getElementById('calc-10').textContent   = saving10.toLocaleString()+' 원 절감';
+  document.getElementById('calc-20').textContent   = saving20.toLocaleString()+' 원 절감';
+
+  const el_co2h = document.getElementById('co2-hour');
+  const el_co2d = document.getElementById('co2-day');
+  const el_co2y = document.getElementById('co2-year');
+  if (el_co2h) el_co2h.textContent = co2.toFixed(3)+' kg';
+  if (el_co2d) el_co2d.textContent = (co2*24).toFixed(2)+' kg';
+  if (el_co2y) el_co2y.textContent = (co2*24*365/1000).toFixed(2)+' t';
+
+  // 홈 요금 시간대는 updateHomeTOU()에서 처리
+
+  // 결과 영역 표시
+  document.getElementById('dashboard-empty').style.display  = 'none';
+  document.getElementById('dashboard-result').style.display = 'block';
+
+  // 경보 배너
+  const banner    = document.getElementById('alert-banner');
+  const alertIcon = document.getElementById('alert-icon');
+  const alertText = document.getElementById('alert-text');
+  banner.style.display = 'flex';
+  banner.className = 'alert-banner';
+  if (grade==='양호') {
+    banner.classList.add('alert-success');
+    alertIcon.textContent = '✅';
+    alertText.textContent = `양호 — 현재 조건을 유지하세요. 예측 피크: ${peak.toFixed(1)}kW (기준 ${THRESHOLDS.caution}kW 미만)`;
+  } else if (grade==='주의') {
+    banner.classList.add('alert-info');
+    alertIcon.textContent = 'ℹ️';
+    alertText.textContent = `주의 — 피크 상승 가능성. 생산 일부를 야간(22시 이후)으로 분산 권고. 예측 피크: ${peak.toFixed(1)}kW`;
+  } else if (grade==='경고') {
+    banner.classList.add('alert-warning');
+    alertIcon.textContent = '⚠️';
+    alertText.textContent = `경고 — 피크 억제 필요. 열처리로 스케줄 조정 권고. 예측 피크: ${peak.toFixed(1)}kW`;
+  } else if (grade==='위험') {
+    banner.classList.add('alert-warning');
+    alertIcon.textContent = '🔶';
+    alertText.textContent = `위험 — 즉각 조치 필요! 생산량 조정 또는 DR 발령 요청 권고. 예측 피크: ${peak.toFixed(1)}kW`;
+  } else {
+    banner.classList.add('alert-danger');
+    alertIcon.textContent = '🚨';
+    alertText.textContent = `초과 — 긴급! 생산량 ${Math.round(prod*0.8).toLocaleString()}개 이하로 즉시 조정하세요. 예측 피크: ${peak.toFixed(1)}kW`;
+  }
+
+  highlightTOUTable(month, hour);
+  updateGaugeChart(peak);
+  update24hChart(prod, workers, furnace, month, temp);
+}
+
+function updateGaugeChart(peak) {
+  const ctx = document.getElementById('chart-gauge');
+  if (charts.gauge) charts.gauge.destroy();
+  const segments = [70,40,40,60];
+  const bgColors = ['rgba(63,185,80,0.3)','rgba(88,166,255,0.3)',
+                    'rgba(210,153,34,0.3)','rgba(255,123,114,0.3)'];
+  charts.gauge = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels:['양호\n<70kW','주의\n70~110kW','위험\n110~150kW','초과\n150kW+'],
+      datasets:[{
+        data:segments,
+        backgroundColor: bgColors,
+        borderColor: bgColors.map(c=>c.replace('0.3','0.8')),
+        borderWidth:1
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      indexAxis:'y',
+      plugins:{legend:{display:false},
+        annotation:{annotations:{line:{type:'line',xMin:peak,xMax:peak,
+          borderColor:'white',borderWidth:2}}}
+      },
+      scales:{
+        x:{max:220,grid:{color:'rgba(0,0,0,0.04)'},
+          ticks:{color:'#64748B',font:{size:11}}},
+        y:{ticks:{color:'#64748B',font:{size:10}}}
+      }
+    }
+  });
+}
+
+function update24hChart(prod, workers, furnace, month, temp) {
+  const peaks=[], usages=[];
+  for(let h=0;h<24;h++){
+    const p=estimatePeak(prod,workers,h,furnace,month,temp);
+    peaks.push(p);
+    usages.push(p*(prod>0?0.82:0.87));
+  }
+  const ctx=document.getElementById('chart-24h');
+  if(charts.h24) charts.h24.destroy();
+  charts.h24=new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels:Array.from({length:24},(_,i)=>i+'시'),
+      datasets:[
+        {label:'예측 피크(kW)',data:peaks,
+         backgroundColor:'rgba(88,166,255,0.7)',borderColor:'#58A6FF',borderWidth:1},
+        {label:'사용량(kWh)',data:usages,type:'line',
+         borderColor:'#F78166',borderWidth:2,
+         pointRadius:0,fill:false,tension:0.3}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#64748B',font:{size:10}}}},
+      scales:{
+        x:{ticks:{color:'#64748B',font:{size:10}}},
+        y:{grid:{color:'rgba(0,0,0,0.04)'},ticks:{color:'#64748B',font:{size:10}}}
+      }
+    }
+  });
+}
+
+// ── 전력 조회 ──
+function initAnalysisCharts() {
+  updateAnalysisChart();
+}
+
+function updateAnalysisChart() {
+  const month = parseInt(document.getElementById('analysis-month').value);
+  const showActual  = document.getElementById('show-actual')?.checked  ?? true;
+  const showPredict = document.getElementById('show-predict')?.checked ?? true;
+  const hours = Array.from({length:24},(_,i)=>i);
+
+  // 실제 데이터 (월별 특성 반영)
+  const actualPeaks = hours.map(h=>{
+    const base = [1,2,12].includes(month)?62:[6,7,8].includes(month)?90:76;
+    return base + (h>=8&&h<=17?38:0) + Math.sin(h/24*Math.PI*2)*12 + Math.random()*6;
+  });
+  // 예측 데이터 (미래 3일치 시뮬레이션 — 약간의 오차 포함)
+  const predictPeaks = actualPeaks.map(p => p*(0.92+Math.random()*0.16));
+
+  const datasets = [];
+  if (showActual) {
+    datasets.push({label:'실제 평균 피크 (kW)', data:actualPeaks,
+      borderColor:'#2563EB', backgroundColor:'rgba(37,99,235,0.08)',
+      borderWidth:2, fill:true, tension:0.4, pointRadius:2});
+  }
+  if (showPredict) {
+    datasets.push({label:'예측 피크 (kW) — 3일 후', data:predictPeaks,
+      borderColor:'#EA580C', borderWidth:2,
+      borderDash:[5,4], fill:false, tension:0.4, pointRadius:2, pointStyle:'triangle'});
+  }
+  // 임계값 선
+  datasets.push(
+    {label:`위험 ${THRESHOLDS.danger}kW`, data:Array(24).fill(THRESHOLDS.danger),
+     borderColor:'rgba(220,38,38,0.5)', borderWidth:1, borderDash:[3,3], fill:false, pointRadius:0},
+    {label:`주의 ${THRESHOLDS.caution}kW`, data:Array(24).fill(THRESHOLDS.caution),
+     borderColor:'rgba(217,119,6,0.5)', borderWidth:1, borderDash:[3,3], fill:false, pointRadius:0}
+  );
+
+  const ctx=document.getElementById('chart-power-trend');
+  if(charts.trend) charts.trend.destroy();
+  charts.trend=new Chart(ctx,{
+    type:'line',
+    data:{ labels:hours.map(h=>h+'시'), datasets },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#64748B',font:{size:10}}}},
+      scales:{
+        x:{ticks:{color:'#64748B',font:{size:10}}},
+        y:{grid:{color:'rgba(0,0,0,0.04)'},ticks:{color:'#64748B',font:{size:10}}}
+      }
+    }
+  });
+}
+
+function searchData() {
+  const dateStr = document.getElementById('search-date').value;
+  if (!dateStr) return;
+  const d = new Date(dateStr);
+  const m = d.getMonth()+1;
+  const day = d.getDay();
+  const isWeekend = (day===0||day===6);
+  const season = getSeason(m);
+
+  const hours = Array.from({length:24},(_,i)=>i);
+  const actualPeaks=[], predictPeaks=[], usages=[], costs=[], prods=[];
+
+  hours.forEach(h=>{
+    const prod = isWeekend?0:(h>=8&&h<=17?Math.round(300+Math.random()*400):0);
+    const actual  = estimatePeak(prod, 10, h, 1, m, 22);
+    const predict = actual * (0.93 + Math.random()*0.14); // ±7% 오차
+    const u       = actual * 0.82;
+    const tou     = getTOU(m, h);
+    actualPeaks.push(actual);
+    predictPeaks.push(predict);
+    usages.push(u);
+    costs.push(Math.round(u * RATE_TABLE[season][tou]));
+    prods.push(prod);
+  });
+
+  const maxPeak = Math.max(...actualPeaks).toFixed(1);
+  const totalU  = usages.reduce((a,b)=>a+b,0).toFixed(1);
+  const totalC  = costs.reduce((a,b)=>a+b,0);
+  const totalP  = prods.reduce((a,b)=>a+b,0);
+
+  document.getElementById('sr-peak').textContent  = maxPeak+' kW';
+  document.getElementById('sr-usage').textContent = totalU+' kWh';
+  document.getElementById('sr-cost').textContent  = totalC.toLocaleString()+' 원';
+  document.getElementById('sr-prod').textContent  = totalP.toLocaleString()+' 개';
+  document.getElementById('search-result').style.display = 'block';
+
+  // 실측 vs 예측 그래프
+  const ctxS = document.getElementById('chart-search');
+  if (charts.search) charts.search.destroy();
+  charts.search = new Chart(ctxS, {
+    type:'bar',
+    data:{
+      labels: hours.map(h=>h+'시'),
+      datasets:[
+        {label:'실제 피크 (kW)', data:actualPeaks,
+         backgroundColor:'rgba(88,166,255,0.5)', borderColor:'#58A6FF', borderWidth:1},
+        {label:'예측 피크 (kW)', data:predictPeaks, type:'line',
+         borderColor:'#F78166', borderWidth:2, pointRadius:3, fill:false, tension:0.4,
+         borderDash:[4,3]}
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#64748B',font:{size:10}}}},
+      scales:{
+        x:{ticks:{color:'#64748B',font:{size:10}}},
+        y:{grid:{color:'rgba(0,0,0,0.04)'},ticks:{color:'#64748B',font:{size:10}}}
+      }
+    }
+  });
+
+  // 시간별 상세 표
+  const tbody = document.getElementById('search-table-body');
+  tbody.innerHTML = '';
+  hours.forEach(h=>{
+    const tou    = getTOU(m, h);
+    const price  = RATE_TABLE[season][tou];
+    const touLabels = ['경부하','중간부하','최대부하'];
+    const badgeCls  = ['badge-blue','badge-yellow','badge-red'];
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${h}시</td>
+      <td><span class="badge ${badgeCls[tou]}">${touLabels[tou]}</span></td>
+      <td style="font-family:monospace">${actualPeaks[h].toFixed(1)}</td>
+      <td style="font-family:monospace;color:var(--orange)">${predictPeaks[h].toFixed(1)}</td>
+      <td style="font-family:monospace">${price}</td>
+      <td style="font-family:monospace">${costs[h].toLocaleString()}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// ── DR 시뮬레이션 (KEPCO 공식 기반) ──
+function runDR() {
+  let cbl, month, startH, endH;
+
+  if (drMode === 'direct') {
+    cbl    = parseFloat(document.getElementById('dr-cbl-direct').value);
+    month  = parseInt(document.getElementById('dr-month').value);
+    startH = parseInt(document.getElementById('dr-start').value);
+    endH   = parseInt(document.getElementById('dr-end').value);
+  } else if (drMode === 'csv') {
+    const cblText = document.getElementById('csv-cbl-val').textContent;
+    cbl = parseFloat(cblText);
+    if (isNaN(cbl)) { alert('먼저 CBL 자동 계산을 실행해주세요.'); return; }
+    month  = parseInt(document.getElementById('dr-month-csv').value);
+    startH = parseInt(document.getElementById('dr-start').value);
+    endH   = parseInt(document.getElementById('dr-end').value);
+  } else {
+    const cblText = document.getElementById('cbl-calc-val').textContent;
+    cbl = parseFloat(cblText) || 85;
+    month  = parseInt(document.getElementById('dr-month-cbl').value);
+    startH = parseInt(document.getElementById('dr-start-cbl').value);
+    endH   = parseInt(document.getElementById('dr-end-cbl').value);
+  }
+
+  const price    = parseInt(document.getElementById('dr-price').value);
+  const reduce   = parseInt(document.getElementById('dr-reduce').value)/100;
+  const drCount  = parseInt(document.getElementById('dr-count').value);
+  const drMonths = parseInt(document.getElementById('dr-months').value);
+  const hours    = endH - startH;
+  const season   = getSeason(month);
+
+  // KEPCO 공식
+  const simAvg      = cbl * (1 - reduce);
+  const reductionKwh= cbl - simAvg;            // 시간당 감축량
+  const totalReduc  = reductionKwh * hours;    // 총 감축량
+
+  // 시간대별 평균 요금 단가
+  let rateSum = 0;
+  for (let h = startH; h < endH; h++) {
+    const tou = getTOU(month, h);
+    rateSum += RATE_TABLE[season][tou];
+  }
+  const avgRate   = rateSum / hours;
+  const billSaving= reductionKwh * rateSum;   // 전기요금 절감
+  const drReward  = totalReduc * price;        // DR 정산금
+  const co2Red    = totalReduc * EMISSION;     // 탄소 감축 (kg)
+
+  // 연간 효과
+  const annualCo2   = co2Red * drCount * drMonths;
+  const carbonMoney = (annualCo2 / 1000) * CARBON_PRICE;
+  const annualTotal = (drReward + billSaving) * drCount * drMonths;
+
+  // KPI 업데이트
+  document.getElementById('dr-cbl-result').textContent    = cbl.toFixed(1)+' kWh';
+  document.getElementById('dr-reduced-kwh').textContent   = totalReduc.toFixed(1)+' kWh';
+  document.getElementById('dr-reduce-pct').textContent    = '감축률 '+(reduce*100)+'% | '+hours+'시간';
+  document.getElementById('dr-settlement').textContent    = drReward.toLocaleString()+' 원';
+  document.getElementById('dr-co2').textContent           = co2Red.toFixed(2)+' kg';
+  document.getElementById('dr-annual-co2').textContent    = annualCo2.toFixed(1)+' kg';
+  document.getElementById('dr-carbon-cost').textContent   = Math.round(carbonMoney).toLocaleString()+' 원';
+  document.getElementById('dr-annual-total').textContent  = Math.round(annualTotal).toLocaleString()+' 원';
+
+  // 차트
+  const allHours = Array.from({length:24},(_,i)=>i);
+  const drHours  = Array.from({length:hours},(_,i)=>startH+i);
+  const before   = allHours.map(h=> cbl + (h>=8&&h<=17?10:0) + (Math.random()-0.5)*8);
+  const after    = before.map((v,i)=> drHours.includes(i) ? v*(1-reduce) : v);
+
+  const ctxD=document.getElementById('chart-dr');
+  if(charts.dr) charts.dr.destroy();
+  charts.dr=new Chart(ctxD,{
+    type:'bar',
+    data:{
+      labels:allHours.map(h=>h+'시'),
+      datasets:[
+        {label:'DR 전',data:before,backgroundColor:allHours.map(h=>
+          drHours.includes(h)?'rgba(255,123,114,0.5)':'rgba(139,148,158,0.3)'),borderWidth:0},
+        {label:'DR 후',data:after,backgroundColor:allHours.map(h=>
+          drHours.includes(h)?'rgba(88,166,255,0.8)':'rgba(139,148,158,0.3)'),borderWidth:0}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#64748B',font:{size:10}}}},
+      scales:{
+        x:{ticks:{color:'#64748B',font:{size:10}}},
+        y:{grid:{color:'rgba(0,0,0,0.04)'},ticks:{color:'#64748B',font:{size:10}}}
+      }
+    }
+  });
+
+  document.getElementById('dr-compare-panel').innerHTML=`
+    <div class="result-row"><span class="result-key">DR 시간 전력 (전)</span><span class="result-val">${(cbl*hours).toFixed(1)} kWh</span></div>
+    <div class="result-row"><span class="result-key">DR 시간 전력 (후)</span><span class="result-val" style="color:var(--green)">${(simAvg*hours).toFixed(1)} kWh</span></div>
+    <div class="result-row"><span class="result-key">총 감축량</span><span class="result-val" style="color:var(--orange)">${totalReduc.toFixed(1)} kWh</span></div>
+    <div class="result-row"><span class="result-key">평균 요금 단가</span><span class="result-val">${avgRate.toFixed(1)} 원/kWh</span></div>
+  `;
+  document.getElementById('dr-benefit-panel').innerHTML=`
+    <div class="result-row"><span class="result-key">전기요금 절감액</span><span class="result-val">${Math.round(billSaving).toLocaleString()} 원</span></div>
+    <div class="result-row"><span class="result-key">DR 정산금</span><span class="result-val" style="color:var(--green)">${drReward.toLocaleString()} 원</span></div>
+    <div class="result-row"><span class="result-key">총 편익 (1회)</span><span class="result-val highlight">${Math.round(drReward+billSaving).toLocaleString()} 원</span></div>
+    <div class="result-row"><span class="result-key">CO₂ 감축 (1회)</span><span class="result-val" style="color:var(--green)">${co2Red.toFixed(2)} kg</span></div>
+  `;
+
+  document.getElementById('dr-empty').style.display  = 'none';
+  document.getElementById('dr-result').style.display = 'block';
+
+  // 홈 카드에 DR 결과 반영
+  const totalBenefit = drReward + Math.round(billSaving);
+  updateHomeDR(
+    totalBenefit.toLocaleString() + ' 원',
+    co2Red.toFixed(2) + ' kgCO₂'
+  );
+}
+
+// ── ESG 차트 ──
+const ESG_DATA = {
+  kwh:  [45230,40890,52100,47800,44900,52300,49700,42100,24100,38200,36800,53500],
+  co2:  [21.62,19.55,24.91,22.85,21.47,24.99,23.75,20.13,11.52,18.26,17.59,25.57],
+  peak: [192,188,192,185,185,192,207,207,195,180,176,188],
+  cost: [4850000,4380000,5580000,5120000,4810000,10022000,9530000,8074000,4620000,7322000,7060000,10262000]
+};
+
+function initESGCharts() {
+  updateESGScenario(); // 슬라이더 기준으로 시나리오 KPI 계산
+  const months=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+
+  const ctxU=document.getElementById('chart-esg-usage');
+  if(charts.esgUsage) charts.esgUsage.destroy();
+  charts.esgUsage=new Chart(ctxU,{
+    type:'bar',
+    data:{
+      labels:months,
+      datasets:[{
+        label:'전력 사용량(kWh)',data:ESG_DATA.kwh,
+        backgroundColor:'rgba(88,166,255,0.6)',borderColor:'#58A6FF',borderWidth:1
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{color:'#64748B',font:{size:10}}},
+        y:{grid:{color:'rgba(0,0,0,0.04)'},ticks:{color:'#64748B',font:{size:10}}}
+      }
+    }
+  });
+
+  const ctxC=document.getElementById('chart-esg-co2');
+  if(charts.esgCo2) charts.esgCo2.destroy();
+  const co2Colors=months.map((_,i)=>
+    [5,6,7].includes(i)?'rgba(255,123,114,0.7)':
+    [10,11,0,1].includes(i)?'rgba(210,153,34,0.7)':
+    'rgba(63,185,80,0.7)');
+  charts.esgCo2=new Chart(ctxC,{
+    type:'bar',
+    data:{
+      labels:months,
+      datasets:[{
+        label:'Scope2(tCO₂eq)',data:ESG_DATA.co2,
+        backgroundColor:co2Colors,borderWidth:0
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{color:'#64748B',font:{size:10}}},
+        y:{grid:{color:'rgba(0,0,0,0.04)'},ticks:{color:'#64748B',font:{size:10}}}
+      }
+    }
+  });
+
+  // GRI 테이블
+  const tbody=document.getElementById('esg-table-body');
+  tbody.innerHTML='';
+  months.forEach((m,i)=>{
+    const basic=Math.round(ESG_DATA.peak[i]*DEMAND);
+    tbody.innerHTML+=`<tr>
+      <td>${m}</td>
+      <td>${ESG_DATA.kwh[i].toLocaleString()}</td>
+      <td>${ESG_DATA.co2[i]}</td>
+      <td>${ESG_DATA.peak[i]}</td>
+      <td>${basic.toLocaleString()}</td>
+      <td>${(ESG_DATA.cost[i]+basic).toLocaleString()}</td>
+    </tr>`;
+  });
+}
+
+function updateESGScenario() {
+  const pct = parseInt(document.getElementById('esg-pct').value)/100;
+  const totalKwh=539642;
+  const totalCost=82340000;
+  const savedKwh=Math.round(totalKwh*pct);
+  const savedCo2=(savedKwh*EMISSION/1000).toFixed(2);
+  const savedCost=Math.round(totalCost*pct/10000);
+  const trees=Math.round(savedKwh*EMISSION/0.067);
+  document.getElementById('esg-saved-kwh').textContent=savedKwh.toLocaleString()+' kWh';
+  document.getElementById('esg-saved-co2').textContent=savedCo2+' tCO₂';
+  document.getElementById('esg-saved-cost').textContent=savedCost+' 만원/년';
+  document.getElementById('esg-trees').textContent=trees.toLocaleString()+' 그루';
+}
+
+// ── CSV 다운로드 ──
+function downloadCSV(type) {
+  let csv='', filename='';
+  if(type==='monthly'){
+    csv='월,총사용량(kWh),Scope2(tCO2eq),최대피크(kW),기본요금(원)\n';
+    const months=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+    months.forEach((m,i)=>{
+      csv+=`${m},${ESG_DATA.kwh[i]},${ESG_DATA.co2[i]},${ESG_DATA.peak[i]},${Math.round(ESG_DATA.peak[i]*DEMAND)}\n`;
+    });
+    filename='esg_monthly_2021.csv';
+  } else {
+    csv='항목,값,GRI기준\n';
+    csv+='연간 총 전력 사용량,539642 kWh,GRI 302-1\n';
+    csv+='연간 총 전기요금,8234만원,GRI 302-1\n';
+    csv+='Scope2 탄소 배출량,257.9 tCO2eq,GRI 305-2\n';
+    csv+='에너지 집약도,0.191 kWh/개,GRI 302-3\n';
+    filename='esg_summary_2021.csv';
+  }
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=filename; a.click();
+}
+
+// ── 홈 카드 1: 현재 시각 기준 요금 시간대 자동 반영 ──
+function updateHomeTOU() {
+  const now   = new Date();
+  const month = now.getMonth() + 1;
+  const hour  = now.getHours();
+  const min   = now.getMinutes();
+  const tou   = getTOU(month, hour);
+  const season= getSeason(month);
+  const tPrice= RATE_TABLE[season][tou];
+
+  const timeStr = `${String(hour).padStart(2,'0')}:${String(min).padStart(2,'0')} 기준`;
+  document.getElementById('home-clock').textContent   = timeStr;
+  document.getElementById('home-tou').textContent     = TOU_LABEL[tou];
+  document.getElementById('home-tou-price').textContent = tPrice + '원/kWh';
+}
+
+// ── 홈 카드 2,3: DR 시뮬레이션 결과 연동 ──
+function updateHomeDR(rewardStr, co2Str) {
+  const rewardEl = document.getElementById('home-dr-reward');
+  const co2El    = document.getElementById('home-dr-co2');
+  rewardEl.textContent  = rewardStr;
+  rewardEl.style.color  = 'var(--green)';
+  document.getElementById('home-dr-hint').textContent    = 'DR 정산금 + 전기요금 절감';
+  co2El.textContent     = co2Str;
+  co2El.style.color     = 'var(--green)';
+  document.getElementById('home-dr-co2-hint').textContent= '배출계수 0.4781 적용';
+}
+
+// ── 대시보드 초기화 ──
+function resetDashboard() {
+  document.getElementById('dashboard-empty').style.display  = 'block';
+  document.getElementById('dashboard-result').style.display = 'none';
+}
+
+// ── 초기 실행 ──
+document.addEventListener('DOMContentLoaded', ()=>{
+  updateHomeTOU();
+  setInterval(updateHomeTOU, 60000);
+  initESGCharts();
+  initWeatherCard();
+});
+</script>
+
+
+</body></html>
